@@ -237,7 +237,6 @@ if ($otpRow) {
     echo json_encode(["success"=>false,"message"=>"OTP sai hoặc đã hết hạn"]);
 }
 exit;
-
 }
 
 // ================== RESET PASSWORD: email + otp + new_password ==================
@@ -270,6 +269,8 @@ if ($action === 'reset_password') {
     echo json_encode(["success"=>true,"message"=>"Đổi mật khẩu thành công"]);
     exit;
 }
+//done login, register,reset_password
+
 
 // ================== GET BANNERS ==================
 if ($action === 'get_banners') {
