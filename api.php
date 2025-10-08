@@ -319,6 +319,52 @@ if ($action === 'get_new_products') {
     echo json_encode(["success"=>true, "products"=>$list], JSON_UNESCAPED_UNICODE);
     exit;
 }
+// GET CATEGORIES
+if ($action === 'get_categories') {
+    $sql = "SELECT id, name FROM categories ORDER BY id ASC";
+    $res = $conn->query($sql);
+    $rows = [];
+    while ($r = $res->fetch_assoc()) {
+        $rows[] = $r;
+    }
+    echo json_encode(["success" => true, "data" => $rows, "meta" => ["count" => count($rows)]], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+// GET PRODUCTS BY CATEGORY with pagination
+if ($action === 'get_products_by_category') {
+    $category_id = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0;
+    $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+    $page_size = isset($_GET['page_size']) ? (int)$_GET['page_size'] : 20;
+    $page_size = min(max(1, $page_size), 50);
+    $offset = ($page - 1) * $page_size;
+    $sql = "
+      SELECT p.id, p.name, p.price,
+        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) AS image_url
+      FROM products p
+      WHERE p.is_active = 1
+    ";
+    if ($category_id > 0) {
+        $sql .= " AND p.category_id = ?";
+    }
+    $sql .= " ORDER BY p.created_at DESC LIMIT ? OFFSET ?";
+    $stmt = $conn->prepare($sql);
+    if ($category_id > 0) {
+        $stmt->bind_param("iii", $category_id, $page_size, $offset);
+    } else {
+        $stmt->bind_param("ii", $page_size, $offset);
+    }
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $items = [];
+    while ($r = $res->fetch_assoc()) {
+        $r['id'] = (int)$r['id'];
+        $r['price'] = (float)$r['price'];
+        $r['image_url'] = $r['image_url'] ? abs_url($r['image_url']) : '';
+        $items[] = $r;
+    }
+    echo json_encode(["success" => true, "data" => $items, "pagination" => ["page"=>$page, "page_size"=>$page_size]], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
 
 
