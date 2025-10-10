@@ -366,6 +366,58 @@ if ($action === 'get_products_by_category') {
     exit;
 }
 
+// GET PRODUCT DETAILS
+if ($action === 'get_product_details') {
+    $product_id = isset($_GET['product_id']) ? (int)$_GET['product_id'] : 0;
+    if ($product_id <= 0) {
+        echo json_encode(["success"=>false,"message"=>"Missing product_id"]); exit;
+    }
+
+    // product
+    $pstmt = $conn->prepare("SELECT id,name,description,price,stock,size_type FROM products WHERE id = ? AND is_active = 1 LIMIT 1");
+    $pstmt->bind_param("i", $product_id);
+    $pstmt->execute();
+    $product = $pstmt->get_result()->fetch_assoc();
+    if (!$product) { echo json_encode(["success"=>false,"message"=>"Product not found"]); exit; }
+
+    // images: main first then others
+    $imgs = [];
+    $ipstmt = $conn->prepare("
+       SELECT image_url, is_main
+       FROM product_images
+       WHERE product_id = ?
+       ORDER BY is_main DESC, id ASC
+    ");
+    $ipstmt->bind_param("i", $product_id);
+    $ipstmt->execute();
+    $r = $ipstmt->get_result();
+    while ($row = $r->fetch_assoc()) {
+        $imgs[] = $row['image_url'] ? abs_url($row['image_url']) : '';
+    }
+
+    // variants (sizes)
+    $vars = [];
+    $vpstmt = $conn->prepare("SELECT id, size, stock, price FROM product_variants WHERE product_id = ? ORDER BY id ASC");
+    $vpstmt->bind_param("i", $product_id);
+    $vpstmt->execute();
+    $rv = $vpstmt->get_result();
+    while ($vv = $rv->fetch_assoc()) {
+        $vv['price'] = $vv['price'] === null ? null : (float)$vv['price'];
+        $vars[] = $vv;
+    }
+
+    // cast types for consistency
+    $product['id'] = (int)$product['id'];
+    $product['price'] = (float)$product['price'];
+    $product['images'] = $imgs;
+    $product['variants'] = $vars;
+
+    echo json_encode(["success"=>true,"product"=>$product], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+
+
 
 
 
