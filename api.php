@@ -416,6 +416,36 @@ if ($action === 'get_product_details') {
     exit;
 }
 
+// GET PRODUCT REVIEWS
+if ($action === 'get_product_reviews') {
+    $product_id = isset($_GET['product_id']) ? (int)$_GET['product_id'] : 0;
+    if ($product_id <= 0) { echo json_encode(["success"=>false,"message"=>"Missing product_id"]); exit; }
+
+    $sql = "
+      SELECT r.id, r.user_id, u.username, r.rating, r.comment, r.created_at
+      FROM reviews r
+      LEFT JOIN users u ON u.id = r.user_id
+      WHERE r.product_id = ?
+      ORDER BY r.created_at DESC
+    ";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $product_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $list = [];
+    while ($row = $res->fetch_assoc()) {
+        $row['id'] = (int)$row['id'];
+        $row['user_id'] = (int)$row['user_id'];
+        $row['rating'] = (int)$row['rating'];
+        $row['comment'] = $row['comment'] ?? '';
+        $row['username'] = $row['username'] ?? 'Guest';
+        $list[] = $row;
+    }
+    echo json_encode(["success" => true, "reviews" => $list], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+
 
 
 
