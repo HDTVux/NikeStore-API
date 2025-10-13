@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: nikestore-api
+    env: php
+    region: singapore
+    buildCommand: ""
+    startCommand: php -S 0.0.0.0:10000 -t .
