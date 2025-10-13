@@ -445,6 +445,236 @@ if ($action === 'get_product_reviews') {
     exit;
 }
 
+// ------------------ CART APIS ------------------
+// Helpers: find or create cart id for user
+function get_or_create_cart_id($conn, $user_id) {
+    $q = $conn->prepare("SELECT id FROM cart WHERE user_id = ? LIMIT 1");
+    $q->bind_param("i",$user_id);
+    $q->execute();
+    $r = $q->get_result()->fetch_assoc();
+    if ($r) return (int)$r['id'];
+    $ins = $conn->prepare("INSERT INTO cart(user_id) VALUES(?)");
+    $ins->bind_param("i",$user_id);
+    $ins->execute();
+    return (int)$conn->insert_id;
+}
+
+// Add to cart (or increase quantity)
+if ($action === 'add_to_cart') {
+    $user_id = isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0;
+    $product_id = isset($_POST['product_id']) ? (int)$_POST['product_id'] : 0;
+    $variant_id = isset($_POST['variant_id']) && $_POST['variant_id'] !== '' ? (int)$_POST['variant_id'] : null;
+    $quantity = isset($_POST['quantity']) ? max(1,(int)$_POST['quantity']) : 1;
+    if ($user_id <= 0 || $product_id <= 0) {
+        echo json_encode(["success"=>false,"message"=>"Missing params"]); exit;
+    }
+    $cart_id = get_or_create_cart_id($conn, $user_id);
+
+    // find existing item
+    if ($variant_id === null) {
+        $chk = $conn->prepare("SELECT id, quantity FROM cart_items WHERE cart_id=? AND product_id=? AND variant_id IS NULL LIMIT 1");
+        $chk->bind_param("ii", $cart_id, $product_id);
+    } else {
+        $chk = $conn->prepare("SELECT id, quantity FROM cart_items WHERE cart_id=? AND product_id=? AND variant_id=? LIMIT 1");
+        $chk->bind_param("iii", $cart_id, $product_id, $variant_id);
+    }
+    $chk->execute();
+    $exist = $chk->get_result()->fetch_assoc();
+    if ($exist) {
+        $newQty = (int)$exist['quantity'] + $quantity;
+        $up = $conn->prepare("UPDATE cart_items SET quantity=? WHERE id=?");
+        $up->bind_param("ii",$newQty, $exist['id']);
+        $up->execute();
+    } else {
+        // insert (handle null variant)
+        if ($variant_id === null) {
+            $ins = $conn->prepare("INSERT INTO cart_items(cart_id, product_id, variant_id, quantity) VALUES(?,?,NULL,?)");
+            $ins->bind_param("iii", $cart_id, $product_id, $quantity); // OK: variant is NULL in SQL text
+        } else {
+            $ins = $conn->prepare("INSERT INTO cart_items(cart_id, product_id, variant_id, quantity) VALUES(?,?,?,?)");
+            $ins->bind_param("iiii", $cart_id, $product_id, $variant_id, $quantity);
+        }
+        $ins->execute();
+    }
+    echo json_encode(["success"=>true,"message"=>"Added to cart"]);
+    exit;
+}
+
+// Get cart by user
+if ($action === 'get_cart') {
+    $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
+    if ($user_id <= 0) { echo json_encode(["success"=>false,"message"=>"Missing user_id"]); exit; }
+    $sql = "
+      SELECT ci.id AS item_id, ci.quantity, ci.variant_id,
+             p.id AS product_id, p.name AS product_name, p.price AS product_price,
+             pv.size AS variant_size, pv.price AS variant_price,
+             (SELECT image_url FROM product_images WHERE product_id=p.id AND is_main=1 LIMIT 1) AS image_url
+      FROM cart c
+      JOIN cart_items ci ON ci.cart_id = c.id
+      JOIN products p ON p.id = ci.product_id
+      LEFT JOIN product_variants pv ON pv.id = ci.variant_id
+      WHERE c.user_id = ?
+    ";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $items = [];
+    $total = 0.0;
+    $count = 0;
+    while ($r = $res->fetch_assoc()) {
+        $price = $r['variant_price'] === null ? (float)$r['product_price'] : (float)$r['variant_price'];
+        $qty = (int)$r['quantity'];
+        $subtotal = $price * $qty;
+        $total += $subtotal;
+        $count += $qty;
+        $r['image_url'] = $r['image_url'] ? abs_url($r['image_url']) : '';
+        $r['price'] = $price;
+        $r['subtotal'] = $subtotal;
+        // cast numeric
+        $r['product_id'] = (int)$r['product_id'];
+        $r['variant_id'] = $r['variant_id'] !== null ? (int)$r['variant_id'] : null;
+        $r['quantity'] = $qty;
+        $items[] = $r;
+    }
+    echo json_encode(["success"=>true,"items"=>$items,"total"=>(float)$total,"count"=>$count], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// Update cart item quantity (by item_id)
+if ($action === 'update_cart_item') {
+    $item_id = isset($_POST['item_id']) ? (int)$_POST['item_id'] : 0;
+    $quantity = isset($_POST['quantity']) ? max(0,(int)$_POST['quantity']) : 0;
+    if ($item_id <= 0) { echo json_encode(["success"=>false,"message"=>"Missing item_id"]); exit; }
+    if ($quantity <= 0) {
+        // remove
+        $d = $conn->prepare("DELETE FROM cart_items WHERE id = ?");
+        $d->bind_param("i",$item_id); $d->execute();
+        echo json_encode(["success"=>true,"message"=>"Removed"]);
+        exit;
+    } else {
+        $u = $conn->prepare("UPDATE cart_items SET quantity=? WHERE id=?");
+        $u->bind_param("ii",$quantity, $item_id);
+        $u->execute();
+        echo json_encode(["success"=>true,"message"=>"Updated"]);
+        exit;
+    }
+}
+
+// Remove single item
+if ($action === 'remove_cart_item') {
+    $item_id = isset($_POST['item_id']) ? (int)$_POST['item_id'] : 0;
+    if ($item_id <= 0) { echo json_encode(["success"=>false,"message"=>"Missing item_id"]); exit; }
+    $d = $conn->prepare("DELETE FROM cart_items WHERE id = ?");
+    $d->bind_param("i",$item_id); $d->execute();
+    echo json_encode(["success"=>true,"message"=>"Removed"]);
+    exit;
+}
+
+// Clear cart
+if ($action === 'clear_cart') {
+    $user_id = isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0;
+    if ($user_id <= 0) { echo json_encode(["success"=>false,"message"=>"Missing user_id"]); exit; }
+    // find cart
+    $q = $conn->prepare("SELECT id FROM cart WHERE user_id=? LIMIT 1");
+    $q->bind_param("i",$user_id); $q->execute(); $r = $q->get_result()->fetch_assoc();
+    if ($r) {
+        $cart_id = (int)$r['id'];
+        $d = $conn->prepare("DELETE FROM cart_items WHERE cart_id = ?");
+        $d->bind_param("i",$cart_id); $d->execute();
+    }
+    echo json_encode(["success"=>true,"message"=>"Cleared"]);
+    exit;
+}
+
+// MERGE CART: POST JSON { user_id: int, items: [ { product_id, variant_id?, quantity } ] }
+if ($action === 'merge_cart') {
+    // dùng helper read_param để hỗ trợ JSON body
+    $user_id_raw = read_param('user_id');
+    $items_raw = null;
+
+    // try reading raw JSON array from body if read_param didn't find items
+    // read_param supports JSON bodies, but be defensive:
+    $rawJson = file_get_contents("php://input");
+    if ($rawJson) {
+        $parsed = json_decode($rawJson, true);
+        if (is_array($parsed) && isset($parsed['items'])) {
+            $items_raw = $parsed['items'];
+        }
+    }
+
+    // fallback: try read_param for items if still null
+    if ($items_raw === null) {
+        $items_tmp = read_param('items');
+        // if it's a JSON string, try decode
+        if ($items_tmp !== '') {
+            $decoded = json_decode($items_tmp, true);
+            if (is_array($decoded)) $items_raw = $decoded;
+        }
+    }
+
+    // finally try reading via read_param('user_id') converted to int
+    $user_id = (int)$user_id_raw;
+
+    if ($user_id <= 0) {
+        echo json_encode(["success" => false, "message" => "Missing user_id"], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if (!is_array($items_raw) || count($items_raw) === 0) {
+        echo json_encode(["success" => false, "message" => "Missing items"], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // Ensure cart exists for user (create if needed)
+    $q = $conn->prepare("SELECT id FROM cart WHERE user_id = ? LIMIT 1");
+    $q->bind_param("i", $user_id);
+    $q->execute();
+    $row = $q->get_result()->fetch_assoc();
+    if ($row) {
+        $cart_id = (int)$row['id'];
+    } else {
+        $ins = $conn->prepare("INSERT INTO cart (user_id) VALUES (?)");
+        $ins->bind_param("i", $user_id);
+        $ins->execute();
+        $cart_id = $conn->insert_id;
+    }
+
+    // For simplicity: upsert items by product_id + variant_id
+    foreach ($items_raw as $it) {
+        $prod = isset($it['product_id']) ? (int)$it['product_id'] : 0;
+        $variant = isset($it['variant_id']) && $it['variant_id'] !== '' ? (int)$it['variant_id'] : null;
+        $qty = isset($it['quantity']) ? max(1, (int)$it['quantity']) : 1;
+        if ($prod <= 0) continue;
+
+        if ($variant === null) {
+            // check existing by product_id and variant_id IS NULL
+            $s = $conn->prepare("SELECT id, quantity FROM cart_items WHERE cart_id = ? AND product_id = ? AND variant_id IS NULL LIMIT 1");
+            $s->bind_param("ii", $cart_id, $prod);
+        } else {
+            $s = $conn->prepare("SELECT id, quantity FROM cart_items WHERE cart_id = ? AND product_id = ? AND variant_id = ? LIMIT 1");
+            $s->bind_param("iii", $cart_id, $prod, $variant);
+        }
+        $s->execute();
+        $ex = $s->get_result()->fetch_assoc();
+        if ($ex) {
+            $newQty = (int)$ex['quantity'] + $qty;
+            $upd = $conn->prepare("UPDATE cart_items SET quantity = ? WHERE id = ?");
+            $upd->bind_param("ii", $newQty, $ex['id']);
+            $upd->execute();
+        } else {
+            $ins2 = $conn->prepare("INSERT INTO cart_items (cart_id, product_id, quantity, variant_id) VALUES (?, ?, ?, ?)");
+            // variant_id can be null; when binding, pass null as i? bind_param doesn't accept null well; set to NULL or 0 and handle in SQL
+            $variant_bind = $variant === null ? null : $variant;
+            $ins2->bind_param("iiii", $cart_id, $prod, $qty, $variant_bind);
+            $ins2->execute();
+        }
+    }
+
+    echo json_encode(["success" => true, "message" => "Merged cart"], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+
 
 
 
