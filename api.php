@@ -4,7 +4,6 @@ use PHPMailer\PHPMailer\Exception;
 require 'C:\xampp\htdocs\api\PHPMailer-master\src\Exception.php';
 require 'C:\xampp\htdocs\api\PHPMailer-master\src\PHPMailer.php';
 require 'C:\xampp\htdocs\api\PHPMailer-master\src\SMTP.php';
-
 header("Content-Type: application/json; charset=utf-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
@@ -674,6 +673,303 @@ if ($action === 'merge_cart') {
     exit;
 }
 
+// ================== CREATE ORDER (COD / generic) ==================
+if ($action === 'create_order') {
+    ini_set('display_errors', 1);
+    error_reporting(E_ALL);
+
+    $raw = file_get_contents("php://input");
+    $json = $raw ? json_decode($raw, true) : null;
+    if (!$json) {
+        echo json_encode(["success" => false, "message" => "Invalid JSON"]);
+        exit;
+    }
+
+    $user_id = isset($json['user_id']) ? (int)$json['user_id'] : 0;
+    $items   = $json['items'] ?? [];
+    $address = trim($json['address'] ?? '');
+    $payment_method = isset($json['payment_method']) ? $json['payment_method'] : 'cash';
+
+    if ($user_id <= 0 || !is_array($items) || empty($items) || $address === '') {
+        echo json_encode(["success" => false, "message" => "Missing user_id, items, or address"]);
+        exit;
+    }
+
+    $conn->begin_transaction();
+    try {
+        $subtotal = 0.0;
+        $calculated_items = [];
+
+        foreach ($items as $it) {
+            $pid = (int)($it['product_id'] ?? 0);
+            $vid = isset($it['variant_id']) && $it['variant_id'] !== null ? (int)$it['variant_id'] : null;
+            $qty = max(0, (int)($it['quantity'] ?? 0));
+            if ($pid <= 0 || $qty <= 0) throw new Exception("Invalid item data in order");
+
+            $unit_price = 0.0;
+
+            if ($vid) {
+                $stmt_price = $conn->prepare("
+                    SELECT pv.id AS vid, IFNULL(pv.price, p.price) AS unit_price, p.id AS product_id
+                    FROM product_variants pv
+                    JOIN products p ON pv.product_id = p.id
+                    WHERE pv.id = ? LIMIT 1
+                ");
+                $stmt_price->bind_param("i", $vid);
+                $stmt_price->execute();
+                $price_res = $stmt_price->get_result();
+                $price_row = $price_res->fetch_assoc();
+                if (!$price_row) throw new Exception("Variant not found for id: " . $vid);
+                $unit_price = (float)$price_row['unit_price'];
+                $actual_product_id = (int)$price_row['product_id'];
+
+                $u = $conn->prepare("UPDATE product_variants SET stock = stock - ? WHERE id = ? AND stock >= ?");
+                $u->bind_param("iii", $qty, $vid, $qty);
+                $u->execute();
+                if ($u->affected_rows === 0) throw new Exception("Out of stock for variant id: " . $vid);
+
+                $sync = $conn->prepare("UPDATE products SET stock = (SELECT IFNULL(SUM(stock),0) FROM product_variants WHERE product_id = ?) WHERE id = ?");
+                $sync->bind_param("ii", $actual_product_id, $actual_product_id);
+                $sync->execute();
+
+            } else {
+                $stmt_price = $conn->prepare("SELECT price, stock FROM products WHERE id = ? LIMIT 1");
+                $stmt_price->bind_param("i", $pid);
+                $stmt_price->execute();
+                $price_res = $stmt_price->get_result();
+                $price_row = $price_res->fetch_assoc();
+                if (!$price_row) throw new Exception("Product not found for id: " . $pid);
+                $unit_price = (float)$price_row['price'];
+
+                $u = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?");
+                $u->bind_param("iii", $qty, $pid, $qty);
+                $u->execute();
+                if ($u->affected_rows === 0) throw new Exception("Out of stock for product ID: " . $pid);
+            }
+
+            $subtotal += $unit_price * $qty;
+            $calculated_items[] = [
+                'product_id' => $pid,
+                'variant_id' => $vid,
+                'quantity'   => $qty,
+                'unit_price' => $unit_price
+            ];
+        }
+
+        $shipping = ($subtotal > 100) ? 0.0 : 5.0;
+        $total = $subtotal + $shipping;
+
+        // NOTE: types = i (user_id), d (total), s (address), s (payment_method), d (shipping), d (subtotal)
+        $ins = $conn->prepare("
+            INSERT INTO orders (user_id, status, total_price, shipping_address, payment_method, shipping_fee, subtotal)
+            VALUES (?, 'pending', ?, ?, ?, ?, ?)
+        ");
+        if (!$ins) throw new Exception("Prepare failed (orders insert): " . $conn->error);
+        $ins->bind_param("idssdd", $user_id, $total, $address, $payment_method, $shipping, $subtotal);
+        if (!$ins->execute()) throw new Exception("Cannot create order: " . $ins->error);
+        $order_id = $conn->insert_id;
+
+        foreach ($calculated_items as $ci) {
+            if ($ci['variant_id'] === null) {
+                $stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, variant_id, quantity, price) VALUES (?, ?, NULL, ?, ?)");
+                $stmt->bind_param("iiid", $order_id, $ci['product_id'], $ci['quantity'], $ci['unit_price']);
+            } else {
+                $stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, variant_id, quantity, price) VALUES (?, ?, ?, ?, ?)");
+                $stmt->bind_param("iiiid", $order_id, $ci['product_id'], $ci['variant_id'], $ci['quantity'], $ci['unit_price']);
+            }
+            if (!$stmt->execute()) throw new Exception("Cannot add order item: " . $stmt->error);
+        }
+
+        $method = ($payment_method === 'vnpay') ? 'vnpay' : 'cash';
+        $pstmt = $conn->prepare("INSERT INTO payments (order_id, payment_method, amount, status, created_at) VALUES (?, ?, ?, 'pending', NOW())");
+        $pstmt->bind_param("isd", $order_id, $method, $total);
+        if (!$pstmt->execute()) throw new Exception("Cannot create payment record: " . $pstmt->error);
+
+        $q_cart = $conn->prepare("SELECT id FROM cart WHERE user_id = ? LIMIT 1");
+        $q_cart->bind_param("i", $user_id);
+        $q_cart->execute();
+        $cart_res = $q_cart->get_result();
+        if ($cart_row = $cart_res->fetch_assoc()) {
+            $cart_id = (int)$cart_row['id'];
+            $del_items = $conn->prepare("DELETE FROM cart_items WHERE cart_id = ?");
+            $del_items->bind_param("i", $cart_id);
+            $del_items->execute();
+        }
+
+        $conn->commit();
+
+        echo json_encode([
+            "success" => true,
+            "message" => "Order created successfully",
+            "order_id" => $order_id,
+            "subtotal" => (float)$subtotal,
+            "shipping" => (float)$shipping,
+            "total" => (float)$total
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+
+    } catch (Exception $e) {
+        $conn->rollback();
+        $errorMessage = "DEBUG: " . $e->getMessage();
+        echo json_encode([
+            "success" => false,
+            "message" => $errorMessage
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+}
+
+
+
+// ================== CREATE VNPay PAYMENT ==================
+if ($action === 'create_vnpay_payment') {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+
+    $raw = file_get_contents("php://input");
+    $json = $raw ? json_decode($raw, true) : null;
+    if (!$json) { echo json_encode(["success" => false, "message" => "Invalid JSON"]); exit; }
+
+    $user_id = isset($json['user_id']) ? (int)$json['user_id'] : 0;
+    $items   = $json['items'] ?? [];
+    $address = trim($json['address'] ?? '');
+
+    if ($user_id <= 0 || !is_array($items) || empty($items)) {
+        echo json_encode(["success" => false, "message" => "Missing params"]); exit;
+    }
+
+    $conn->begin_transaction();
+    try {
+        $subtotal = 0.0;
+        $calculated_items = [];
+
+        foreach ($items as $it) {
+            $pid = isset($it['product_id']) ? (int)$it['product_id'] : 0;
+            $vid = isset($it['variant_id']) && $it['variant_id'] !== null ? (int)$it['variant_id'] : null;
+            $qty = isset($it['quantity']) ? max(0,(int)$it['quantity']) : 0;
+            if ($pid <= 0 || $qty <= 0) throw new Exception("Invalid item");
+
+            if ($vid) {
+                $s = $conn->prepare("SELECT pv.id as vid, pv.price as vprice, pv.stock as vstock, p.price as pprice, p.id as product_id 
+                                     FROM product_variants pv 
+                                     JOIN products p ON pv.product_id = p.id 
+                                     WHERE pv.id = ? LIMIT 1");
+                $s->bind_param("i", $vid);
+                $s->execute();
+                $row = $s->get_result()->fetch_assoc();
+                if (!$row) throw new Exception("Variant not found");
+                $unit_price = $row['vprice'] === null ? (float)$row['pprice'] : (float)$row['vprice'];
+
+                $u = $conn->prepare("UPDATE product_variants SET stock = stock - ? WHERE id = ? AND stock >= ?");
+                $u->bind_param("iii", $qty, $vid, $qty);
+                $u->execute();
+                if ($u->affected_rows === 0) throw new Exception("Out of stock or concurrent order for variant " . $vid);
+
+                $productIdForSync = (int)$row['product_id'];
+                $sync = $conn->prepare("UPDATE products SET stock = (SELECT IFNULL(SUM(stock),0) FROM product_variants WHERE product_id = ?) WHERE id = ?");
+                $sync->bind_param("ii", $productIdForSync, $productIdForSync);
+                $sync->execute();
+
+            } else {
+                $s = $conn->prepare("SELECT price, stock FROM products WHERE id = ? LIMIT 1");
+                $s->bind_param("i", $pid);
+                $s->execute();
+                $row = $s->get_result()->fetch_assoc();
+                if (!$row) throw new Exception("Product not found");
+                $unit_price = (float)$row['price'];
+
+                $u = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?");
+                $u->bind_param("iii", $qty, $pid, $qty);
+                $u->execute();
+                if ($u->affected_rows === 0) throw new Exception("Out of stock or concurrent order for product " . $pid);
+            }
+
+            $subtotal += $unit_price * $qty;
+            $calculated_items[] = [
+                'product_id' => $pid,
+                'variant_id' => $vid,
+                'quantity'   => $qty,
+                'unit_price' => $unit_price
+            ];
+        }
+
+        $shipping = ($subtotal > 100) ? 0.0 : 5.0;
+        $total = $subtotal + $shipping;
+
+        // types: i (user_id), d (total), s (address), d (shipping), d (subtotal)
+        $ins = $conn->prepare("INSERT INTO orders (user_id, status, total_price, shipping_address, payment_method, shipping_fee, subtotal) VALUES (?, 'pending_payment', ?, ?, 'vnpay', ?, ?)");
+        if (!$ins) throw new Exception("Prepare failed (orders insert): " . $conn->error);
+        $ins->bind_param("idsdd", $user_id, $total, $address, $shipping, $subtotal);
+        if (!$ins->execute()) throw new Exception("Cannot create order");
+        $order_id = $conn->insert_id;
+
+        foreach ($calculated_items as $ci) {
+            if ($ci['variant_id'] === null) {
+                $stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, variant_id, quantity, price) VALUES (?, ?, NULL, ?, ?)");
+                $stmt->bind_param("iiid", $order_id, $ci['product_id'], $ci['quantity'], $ci['unit_price']);
+            } else {
+                $stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, variant_id, quantity, price) VALUES (?, ?, ?, ?, ?)");
+                $stmt->bind_param("iiiid", $order_id, $ci['product_id'], $ci['variant_id'], $ci['quantity'], $ci['unit_price']);
+            }
+            if (!$stmt->execute()) throw new Exception("Cannot add order item: " . $stmt->error);
+        }
+
+        $pstmt = $conn->prepare("INSERT INTO payments (order_id, payment_method, amount, status, created_at) VALUES (?, 'vnpay', ?, 'pending', NOW())");
+        $pstmt->bind_param("id", $order_id, $total);
+        if (!$pstmt->execute()) throw new Exception("Cannot create payment record: " . $pstmt->error);
+
+        $conn->commit();
+
+        require_once __DIR__ . '/vnpay_php/config.php';
+        $vnp_TmnCode    = VNPAY_TMN_CODE;
+        $vnp_HashSecret = VNPAY_HASH_SECRET;
+        $vnp_Url        = VNPAY_URL;
+        $returnUrl      = VNPAY_RETURN_URL;
+
+        $vnp_Params = [];
+        $vnp_Params['vnp_Version']    = '2.1.0';
+        $vnp_Params['vnp_Command']    = 'pay';
+        $vnp_Params['vnp_TmnCode']    = $vnp_TmnCode;
+
+        $USD_RATE = 25000;
+        $vnp_Params['vnp_Amount'] = intval($total * $USD_RATE * 100);
+
+        $vnp_Params['vnp_CreateDate'] = date('YmdHis');
+        $vnp_Params['vnp_CurrCode']   = 'VND';
+        $vnp_Params['vnp_IpAddr']     = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $vnp_Params['vnp_Locale']     = 'vn';
+        $vnp_Params['vnp_OrderInfo']  = 'Thanh toan don hang #' . $order_id;
+        $vnp_Params['vnp_OrderType']  = 'other';
+        $vnp_Params['vnp_ReturnUrl']  = $returnUrl;
+        $vnp_Params['vnp_TxnRef']     = $order_id . '_' . time();
+
+        ksort($vnp_Params);
+        $hashData = '';
+        $i = 0;
+        foreach ($vnp_Params as $key => $value) {
+            if ($i == 1) $hashData .= '&';
+            else $i = 1;
+            $hashData .= urlencode($key) . "=" . urlencode($value);
+        }
+        $vnpSecureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+        $vnp_Params['vnp_SecureHash'] = $vnpSecureHash;
+
+        $vnp_UrlFull = $vnp_Url . '?' . http_build_query($vnp_Params);
+
+        echo json_encode([
+            "success" => true,
+            "payment_url" => $vnp_UrlFull,
+            "order_id" => $order_id
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+
+    } catch (Exception $e) {
+        $conn->rollback();
+        $errorMessage = "DEBUG: " . $e->getMessage();
+        echo json_encode(["success" => false, "message" => $errorMessage], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+}
 
 
 
