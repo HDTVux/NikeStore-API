@@ -971,6 +971,103 @@ if ($action === 'create_vnpay_payment') {
     }
 }
 
+// ================== GET ORDER STATUS (used by app polling) ==================
+if ($action === 'get_order_status') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $order_id = isset($_GET['order_id']) ? (int)$_GET['order_id'] : 0;
+    if ($order_id <= 0) {
+        echo json_encode(["success" => false, "message" => "Missing order_id"]);
+        exit;
+    }
+
+    // Lấy thông tin đơn hàng
+    $stmt = $conn->prepare("SELECT id, user_id, status, total_price, shipping_fee, subtotal, payment_method, created_at FROM orders WHERE id = ? LIMIT 1");
+    $stmt->bind_param("i", $order_id);
+    if (!$stmt->execute()) {
+        echo json_encode(["success" => false, "message" => "DB error"]);
+        exit;
+    }
+    $order = $stmt->get_result()->fetch_assoc();
+    if (!$order) {
+        echo json_encode(["success" => false, "message" => "Order not found"]);
+        exit;
+    }
+
+    // Lấy payment (latest) cho order
+    $pstmt = $conn->prepare("SELECT id, order_id, payment_method, transaction_id, amount, status, created_at FROM payments WHERE order_id = ? ORDER BY id DESC LIMIT 1");
+    $pstmt->bind_param("i", $order_id);
+    $pstmt->execute();
+    $payment = $pstmt->get_result()->fetch_assoc();
+
+    // Cast numeric strings
+    if ($order) {
+        $order['id'] = (int)$order['id'];
+        $order['total_price'] = is_null($order['total_price']) ? null : (float)$order['total_price'];
+        $order['shipping_fee'] = is_null($order['shipping_fee']) ? null : (float)$order['shipping_fee'];
+        $order['subtotal'] = is_null($order['subtotal']) ? null : (float)$order['subtotal'];
+    }
+    if ($payment) {
+        $payment['id'] = (int)$payment['id'];
+        $payment['order_id'] = (int)$payment['order_id'];
+        $payment['amount'] = is_null($payment['amount']) ? null : (float)$payment['amount'];
+    }
+
+    echo json_encode([
+        "success" => true,
+        "order" => $order,
+        "payment" => $payment
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// ================== SEARCH PRODUCTS ==================
+// GET: api.php?action=search_products&q=...
+if ($action === 'search_products') {
+    $q = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
+    $page = isset($_GET['page']) ? max(1,(int)$_GET['page']) : 1;
+    $page_size = isset($_GET['page_size']) ? (int)$_GET['page_size'] : 50;
+    $page_size = min(max(1,$page_size), 100);
+    $offset = ($page - 1) * $page_size;
+
+    if ($q === '') {
+        echo json_encode(["success" => true, "products" => [], "pagination" => ["page"=>$page, "page_size"=>$page_size]], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // NOTE: không dùng COLLATE ở đây — để MySQL dùng collation mặc định của cột.
+    $sql = "
+      SELECT p.id, p.name, p.price,
+        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) AS image_url
+      FROM products p
+      WHERE p.is_active = 1
+        AND p.name LIKE ?
+      ORDER BY p.created_at DESC
+      LIMIT ? OFFSET ?
+    ";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        echo json_encode(["success"=>false,"message"=>"prepare failed: ".$conn->error], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $like = "%{$q}%";
+    // bind types: s = string, i = int
+    $stmt->bind_param("sii", $like, $page_size, $offset);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $items = [];
+    while ($r = $res->fetch_assoc()) {
+        $r['id'] = (int)$r['id'];
+        $r['price'] = (float)$r['price'];
+        $r['image_url'] = $r['image_url'] ? (isset($_SERVER['REQUEST_SCHEME']) ? $_SERVER['REQUEST_SCHEME'] : 'http') . '://' . $_SERVER['HTTP_HOST'] . '/' . ltrim($r['image_url'], '/') : '';
+        $items[] = $r;
+    }
+    echo json_encode(["success"=>true, "products"=>$items, "pagination"=>["page"=>$page,"page_size"=>$page_size]], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+
+
 
 
 
