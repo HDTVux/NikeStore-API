@@ -673,7 +673,7 @@ if ($action === 'merge_cart') {
     exit;
 }
 
-// ================== CREATE ORDER (COD / generic) ==================
+// ================== CREATE ORDER (COD / generic) ================== 
 if ($action === 'create_order') {
     ini_set('display_errors', 1);
     error_reporting(E_ALL);
@@ -688,6 +688,7 @@ if ($action === 'create_order') {
     $user_id = isset($json['user_id']) ? (int)$json['user_id'] : 0;
     $items   = $json['items'] ?? [];
     $address = trim($json['address'] ?? '');
+    $phone   = isset($json['phone']) ? trim($json['phone']) : null; // <-- new
     $payment_method = isset($json['payment_method']) ? $json['payment_method'] : 'cash';
 
     if ($user_id <= 0 || !is_array($items) || empty($items) || $address === '') {
@@ -728,6 +729,7 @@ if ($action === 'create_order') {
                 $u->execute();
                 if ($u->affected_rows === 0) throw new Exception("Out of stock for variant id: " . $vid);
 
+                // sync product stock from variants
                 $sync = $conn->prepare("UPDATE products SET stock = (SELECT IFNULL(SUM(stock),0) FROM product_variants WHERE product_id = ?) WHERE id = ?");
                 $sync->bind_param("ii", $actual_product_id, $actual_product_id);
                 $sync->execute();
@@ -759,13 +761,13 @@ if ($action === 'create_order') {
         $shipping = ($subtotal > 100) ? 0.0 : 5.0;
         $total = $subtotal + $shipping;
 
-        // NOTE: types = i (user_id), d (total), s (address), s (payment_method), d (shipping), d (subtotal)
         $ins = $conn->prepare("
-            INSERT INTO orders (user_id, status, total_price, shipping_address, payment_method, shipping_fee, subtotal)
-            VALUES (?, 'pending', ?, ?, ?, ?, ?)
+            INSERT INTO orders (user_id, status, total_price, shipping_address, phone, payment_method, shipping_fee, subtotal)
+            VALUES (?, 'pending', ?, ?, ?, ?, ?, ?)
         ");
         if (!$ins) throw new Exception("Prepare failed (orders insert): " . $conn->error);
-        $ins->bind_param("idssdd", $user_id, $total, $address, $payment_method, $shipping, $subtotal);
+        // types: i (user_id), d (total), s (address), s (phone), s (payment_method), d (shipping), d (subtotal)
+        $ins->bind_param("idsssdd", $user_id, $total, $address, $phone, $payment_method, $shipping, $subtotal);
         if (!$ins->execute()) throw new Exception("Cannot create order: " . $ins->error);
         $order_id = $conn->insert_id;
 
@@ -785,6 +787,7 @@ if ($action === 'create_order') {
         $pstmt->bind_param("isd", $order_id, $method, $total);
         if (!$pstmt->execute()) throw new Exception("Cannot create payment record: " . $pstmt->error);
 
+        // clear user's cart (if exists)
         $q_cart = $conn->prepare("SELECT id FROM cart WHERE user_id = ? LIMIT 1");
         $q_cart->bind_param("i", $user_id);
         $q_cart->execute();
@@ -833,8 +836,9 @@ if ($action === 'create_vnpay_payment') {
     $user_id = isset($json['user_id']) ? (int)$json['user_id'] : 0;
     $items   = $json['items'] ?? [];
     $address = trim($json['address'] ?? '');
+    $phone   = isset($json['phone']) ? trim($json['phone']) : null;
 
-    if ($user_id <= 0 || !is_array($items) || empty($items)) {
+    if ($user_id <= 0 || !is_array($items) || empty($items) || $address === '') {
         echo json_encode(["success" => false, "message" => "Missing params"]); exit;
     }
 
@@ -896,10 +900,10 @@ if ($action === 'create_vnpay_payment') {
         $shipping = ($subtotal > 100) ? 0.0 : 5.0;
         $total = $subtotal + $shipping;
 
-        // types: i (user_id), d (total), s (address), d (shipping), d (subtotal)
-        $ins = $conn->prepare("INSERT INTO orders (user_id, status, total_price, shipping_address, payment_method, shipping_fee, subtotal) VALUES (?, 'pending_payment', ?, ?, 'vnpay', ?, ?)");
+        $ins = $conn->prepare("INSERT INTO orders (user_id, status, total_price, shipping_address, phone, payment_method, shipping_fee, subtotal) VALUES (?, 'pending_payment', ?, ?, ?, 'vnpay', ?, ?)");
         if (!$ins) throw new Exception("Prepare failed (orders insert): " . $conn->error);
-        $ins->bind_param("idsdd", $user_id, $total, $address, $shipping, $subtotal);
+        // types: i (user_id), d (total), s (address), s (phone), d (shipping), d (subtotal)
+        $ins->bind_param("idssdd", $user_id, $total, $address, $phone, $shipping, $subtotal);
         if (!$ins->execute()) throw new Exception("Cannot create order");
         $order_id = $conn->insert_id;
 
@@ -981,8 +985,7 @@ if ($action === 'get_order_status') {
         exit;
     }
 
-    // Lấy thông tin đơn hàng
-    $stmt = $conn->prepare("SELECT id, user_id, status, total_price, shipping_fee, subtotal, payment_method, created_at FROM orders WHERE id = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT id, user_id, status, total_price, shipping_fee, subtotal, payment_method, shipping_address, phone, created_at FROM orders WHERE id = ? LIMIT 1");
     $stmt->bind_param("i", $order_id);
     if (!$stmt->execute()) {
         echo json_encode(["success" => false, "message" => "DB error"]);
@@ -1063,6 +1066,136 @@ if ($action === 'search_products') {
         $items[] = $r;
     }
     echo json_encode(["success"=>true, "products"=>$items, "pagination"=>["page"=>$page,"page_size"=>$page_size]], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// ================== GET USER ORDERS (order history) ==================
+if ($action === 'get_user_orders') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
+    if ($user_id <= 0) {
+        echo json_encode(["success" => false, "message" => "Missing user_id"]);
+        exit;
+    }
+
+    // Lấy các đơn hàng của user (mới nhất trước)
+    $stmt = $conn->prepare("SELECT id, status, total_price, shipping_fee, subtotal, payment_method, shipping_address, phone, created_at FROM orders WHERE user_id = ? ORDER BY created_at DESC");
+    $stmt->bind_param("i", $user_id);
+    if (!$stmt->execute()) {
+        echo json_encode(["success" => false, "message" => "DB error"]);
+        exit;
+    }
+    $orders_res = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+    $orders = [];
+    foreach ($orders_res as $ord) {
+        $orderId = (int)$ord['id'];
+
+        // Lấy payment mới nhất cho đơn
+        $pstmt = $conn->prepare("SELECT id, order_id, payment_method, transaction_id, amount, status, created_at FROM payments WHERE order_id = ? ORDER BY id DESC LIMIT 1");
+        $pstmt->bind_param("i", $orderId);
+        $pstmt->execute();
+        $payment = $pstmt->get_result()->fetch_assoc();
+
+        // convert types
+        $ord['id'] = (int)$ord['id'];
+        $ord['total_price'] = is_null($ord['total_price']) ? null : (float)$ord['total_price'];
+        $ord['shipping_fee'] = is_null($ord['shipping_fee']) ? null : (float)$ord['shipping_fee'];
+        $ord['subtotal'] = is_null($ord['subtotal']) ? null : (float)$ord['subtotal'];
+
+        if ($payment) {
+            $payment['id'] = (int)$payment['id'];
+            $payment['order_id'] = (int)$payment['order_id'];
+            $payment['amount'] = is_null($payment['amount']) ? null : (float)$payment['amount'];
+        }
+
+        $orders[] = [
+            "order" => $ord,
+            "payment" => $payment
+        ];
+    }
+
+    echo json_encode(["success" => true, "orders" => $orders], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// ================== GET ORDER DETAIL ==================
+if ($action === 'get_order_detail') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $order_id = isset($_GET['order_id']) ? (int)$_GET['order_id'] : 0;
+    $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0; // optional check
+    if ($order_id <= 0) {
+        echo json_encode(["success" => false, "message" => "Missing order_id"]);
+        exit;
+    }
+
+    // Get order
+    $stmt = $conn->prepare("SELECT id, user_id, status, total_price, shipping_fee, subtotal, payment_method, shipping_address, phone, created_at FROM orders WHERE id = ? LIMIT 1");
+    $stmt->bind_param("i", $order_id);
+    if (!$stmt->execute()) {
+        echo json_encode(["success" => false, "message" => "DB error"]);
+        exit;
+    }
+    $order = $stmt->get_result()->fetch_assoc();
+    if (!$order) {
+        echo json_encode(["success" => false, "message" => "Order not found"]);
+        exit;
+    }
+
+    // If user_id provided, ensure ownership
+    if ($user_id > 0 && (int)$order['user_id'] !== $user_id) {
+        echo json_encode(["success" => false, "message" => "Forbidden"]);
+        exit;
+    }
+
+    // Get items
+    $it = $conn->prepare("SELECT oi.id, oi.product_id, oi.variant_id, oi.quantity, oi.price, p.name AS product_name
+                          FROM order_items oi
+                          LEFT JOIN products p ON oi.product_id = p.id
+                          WHERE oi.order_id = ?");
+    $it->bind_param("i", $order_id);
+    $it->execute();
+    $items = $it->get_result()->fetch_all(MYSQLI_ASSOC);
+
+    // Get latest payment
+    $pstmt = $conn->prepare("SELECT id, order_id, payment_method, transaction_id, amount, status, created_at FROM payments WHERE order_id = ? ORDER BY id DESC LIMIT 1");
+    $pstmt->bind_param("i", $order_id);
+    $pstmt->execute();
+    $payment = $pstmt->get_result()->fetch_assoc();
+
+    // cast numeric types
+    $order['id'] = (int)$order['id'];
+    $order['total_price'] = is_null($order['total_price']) ? null : (float)$order['total_price'];
+    $order['shipping_fee'] = is_null($order['shipping_fee']) ? null : (float)$order['shipping_fee'];
+    $order['subtotal'] = is_null($order['subtotal']) ? null : (float)$order['subtotal'];
+
+    if ($items) {
+        foreach ($items as &$itrow) {
+            $itrow['id'] = (int)$itrow['id'];
+            $itrow['product_id'] = (int)$itrow['product_id'];
+            $itrow['variant_id'] = is_null($itrow['variant_id']) ? null : (int)$itrow['variant_id'];
+            $itrow['quantity'] = (int)$itrow['quantity'];
+            $itrow['price'] = (float)$itrow['price'];
+        }
+        unset($itrow);
+    } else {
+        $items = [];
+    }
+
+    if ($payment) {
+        $payment['id'] = (int)$payment['id'];
+        $payment['order_id'] = (int)$payment['order_id'];
+        $payment['amount'] = is_null($payment['amount']) ? null : (float)$payment['amount'];
+    }
+
+    echo json_encode([
+        "success" => true,
+        "order" => $order,
+        "items" => $items,
+        "payment" => $payment
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
