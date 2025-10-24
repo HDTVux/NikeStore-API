@@ -1199,6 +1199,48 @@ if ($action === 'get_order_detail') {
     exit;
 }
 
+// GET: api.php?action=get_product_review&user_id=...&product_id=...
+if ($action === 'get_product_review') {
+    $user_id = (int)($_GET['user_id'] ?? 0);
+    $product_id = (int)($_GET['product_id'] ?? 0);
+    if ($user_id <= 0 || $product_id <= 0) die(json_encode(['success'=>false]));
+    $stmt = $conn->prepare("SELECT * FROM reviews WHERE user_id = ? AND product_id = ? LIMIT 1");
+    $stmt->bind_param("ii", $user_id, $product_id);
+    $stmt->execute();
+    $review = $stmt->get_result()->fetch_assoc();
+    echo json_encode(['success'=>true, 'review'=>$review]);
+    exit;
+}
+// POST: api.php?action=submit_review
+if ($action === 'submit_review') {
+    $raw = file_get_contents("php://input");
+    $json = $raw ? json_decode($raw, true) : null;
+    $user_id = (int)($json['user_id'] ?? 0);
+    $product_id = (int)($json['product_id'] ?? 0);
+    $rating = (int)($json['rating'] ?? 0);
+    $comment = trim($json['comment'] ?? '');
+    if ($user_id <= 0 || $product_id <= 0 || $rating < 1 || $rating > 5) die(json_encode(['success'=>false, 'message'=>'Invalid']));
+
+    // Kiểm tra đã từng review chưa
+    $stmt = $conn->prepare("SELECT id FROM reviews WHERE user_id = ? AND product_id = ?");
+    $stmt->bind_param("ii", $user_id, $product_id);
+    $stmt->execute();
+    $exists = $stmt->get_result()->fetch_assoc();
+
+    if ($exists) {
+        // Nếu muốn update review cũ (không thì bỏ else)
+        $stmt = $conn->prepare("UPDATE reviews SET rating=?, comment=?, created_at=NOW() WHERE id=?");
+        $stmt->bind_param("isi", $rating, $comment, $exists['id']);
+        $stmt->execute();
+    } else {
+        $stmt = $conn->prepare("INSERT INTO reviews (user_id, product_id, rating, comment, created_at) VALUES (?, ?, ?, ?, NOW())");
+        $stmt->bind_param("iiis", $user_id, $product_id, $rating, $comment);
+        $stmt->execute();
+    }
+
+    echo json_encode(['success'=>true]);
+    exit;
+}
 
 
 
