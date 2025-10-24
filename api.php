@@ -64,7 +64,7 @@ if ($action === 'login') {
         echo json_encode(["success" => false, "message" => "Thiếu username hoặc password"]); exit;
     }
 
-    $sql = "SELECT id, email, username, password, gender, address, role, created_at
+    $sql = "SELECT id, email, username, password, gender, address, role, created_at, is_active
             FROM users
             WHERE username = ?";
     $stmt = $conn->prepare($sql);
@@ -76,8 +76,13 @@ if ($action === 'login') {
     $rs = $stmt->get_result();
 
     if ($row = $rs->fetch_assoc()) {
-        // So khớp mật khẩu (plain). Nếu sau này dùng hash, đổi sang password_verify(...)
         if ($row['password'] === $password) {
+            // Kiểm tra trạng thái is_active
+            if ($row['is_active'] == 0) { // Giả định 0 là không hoạt động
+                echo json_encode(["success" => false, "message" => "Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên."]);
+                exit;
+            }
+
             unset($row['password']); // không trả password về client
             echo json_encode([
                 "success" => true,
@@ -92,6 +97,7 @@ if ($action === 'login') {
     }
     exit;
 }
+
 // ================== REGISTER: email + username + password
 if ($action === 'register') {
     $email    = read_param('email');
@@ -299,6 +305,7 @@ if ($action === 'get_new_products') {
                    (SELECT image_url FROM product_images 
                      WHERE product_id=p.id AND is_main=1 LIMIT 1) AS image_url
             FROM products p
+            WHERE is_active = 1
             ORDER BY p.created_at DESC
             LIMIT 4";
     $rs = $conn->query($sql);
