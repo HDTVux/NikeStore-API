@@ -1199,7 +1199,7 @@ if ($action === 'get_order_detail') {
     exit;
 }
 
-// GET: api.php?action=get_product_review&user_id=...&product_id=...
+// ================== GET PRODUCT REVIEW ==================
 if ($action === 'get_product_review') {
     $user_id = (int)($_GET['user_id'] ?? 0);
     $product_id = (int)($_GET['product_id'] ?? 0);
@@ -1242,7 +1242,79 @@ if ($action === 'submit_review') {
     exit;
 }
 
+// ================== GET USER PROFILE (by user_id) ==================
+if ($action === 'get_user_profile') {
+    header('Content-Type: application/json; charset=utf-8');
+    $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
+    if ($user_id <= 0) {
+        echo json_encode(["success" => false, "message" => "Thiếu user_id"]);
+        exit;
+    }
 
+    $stmt = $conn->prepare("SELECT id, email, username, gender, address, is_active, created_at, role FROM users WHERE id = ? LIMIT 1");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $info = $stmt->get_result()->fetch_assoc();
+
+    if ($info) {
+        // Trả về thông tin user (không bao gồm mật khẩu)
+        echo json_encode([
+            "success" => true,
+            "user" => $info
+        ], JSON_UNESCAPED_UNICODE);
+    } else {
+        echo json_encode([
+            "success" => false,
+            "message" => "Không tìm thấy user"
+        ], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+// ================== UPDATE USER PROFILE ==================
+if ($action === 'update_user_profile') {
+    header('Content-Type: application/json; charset=utf-8');
+    $raw = file_get_contents("php://input");
+    $json = $raw ? json_decode($raw, true) : null;
+    if (!$json) {
+        echo json_encode(["success" => false, "message" => "Invalid JSON"]);
+        exit;
+    }
+
+    $user_id = isset($json['user_id']) ? (int)$json['user_id'] : 0;
+    $username = trim($json['username'] ?? '');
+    $address = trim($json['address'] ?? '');
+    $gender = isset($json['gender']) ? (int)$json['gender'] : null;
+
+    if ($user_id <= 0 || $username === '' || $gender === null) {
+        echo json_encode(["success" => false, "message" => "Thiếu thông tin bắt buộc"]);
+        exit;
+    }
+
+    // Nếu có validate thêm, check username độ dài, address hợp lệ v.v.
+
+    $stmt = $conn->prepare("UPDATE users SET username = ?, address = ?, gender = ? WHERE id = ?");
+    $stmt->bind_param("ssii", $username, $address, $gender, $user_id);
+    if ($stmt->execute()) {
+        // Lấy lại thông tin mới nhất trả về client
+        $q = $conn->prepare("SELECT id, email, username, gender, address, created_at, role FROM users WHERE id = ? LIMIT 1");
+        $q->bind_param("i", $user_id);
+        $q->execute();
+        $info = $q->get_result()->fetch_assoc();
+
+        echo json_encode([
+            "success" => true,
+            "message" => "Cập nhật thành công",
+            "user" => $info
+        ], JSON_UNESCAPED_UNICODE);
+    } else {
+        echo json_encode([
+            "success" => false,
+            "message" => "Cập nhật thất bại: " . $stmt->error
+        ], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
 
 
 
