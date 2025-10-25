@@ -327,7 +327,7 @@ if ($action === 'get_new_products') {
 }
 // GET CATEGORIES
 if ($action === 'get_categories') {
-    $sql = "SELECT id, name FROM categories ORDER BY id ASC";
+    $sql = "SELECT id, name FROM categories WHERE is_active=1 ORDER BY id ASC";
     $res = $conn->query($sql);
     $rows = [];
     while ($r = $res->fetch_assoc()) {
