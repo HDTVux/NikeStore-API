@@ -1323,8 +1323,66 @@ if ($action === 'update_user_profile') {
     exit;
 }
 
+// ================== Add favorite ==================
+if ($action === 'add_favorite') {
+    $user_id = isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0;
+    $product_id = isset($_POST['product_id']) ? (int)$_POST['product_id'] : 0;
 
+    if ($user_id <= 0 || $product_id <= 0) {
+        echo json_encode(["success" => false, "message" => "Thiếu user_id hoặc product_id"]);
+        exit;
+    }
 
+    // Chỉ thêm nếu chưa tồn tại
+    $stmt = $conn->prepare("INSERT IGNORE INTO favorite (user_id, product_id) VALUES (?, ?)");
+    $stmt->bind_param("ii", $user_id, $product_id);
+    $stmt->execute();
+
+    echo json_encode(["success" => true, "message" => "Đã thêm vào yêu thích"]);
+    exit;
+}
+
+// ================== Remove favorite ==================
+if ($action === 'remove_favorite') {
+    $user_id = isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0;
+    $product_id = isset($_POST['product_id']) ? (int)$_POST['product_id'] : 0;
+
+    if ($user_id <= 0 || $product_id <= 0) {
+        echo json_encode(["success" => false, "message" => "Thiếu user_id hoặc product_id"]);
+        exit;
+    }
+
+    $stmt = $conn->prepare("DELETE FROM favorite WHERE user_id = ? AND product_id = ?");
+    $stmt->bind_param("ii", $user_id, $product_id);
+    $stmt->execute();
+
+    echo json_encode(["success" => true, "message" => "Đã xóa khỏi yêu thích"]);
+    exit;
+}
+
+// ================== Get favorite ==================
+if ($action === 'get_favorite') {
+    $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
+
+    if ($user_id <= 0) {
+        echo json_encode(["success" => false, "message" => "Thiếu user_id"]);
+        exit;
+    }
+
+    $sql = "SELECT p.* FROM favorite f JOIN products p ON f.product_id = p.id WHERE f.user_id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $products = [];
+    while ($row = $result->fetch_assoc()) {
+        $products[] = $row;
+    }
+
+    echo json_encode(["success" => true, "wishlist" => $products]);
+    exit;
+}
 
 
 

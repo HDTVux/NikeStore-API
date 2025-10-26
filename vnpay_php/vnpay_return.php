@@ -6,7 +6,6 @@ date_default_timezone_set('Asia/Ho_Chi_Minh');
 $loaded = false;
 $base = __DIR__;
 
-// possible config/connect locations (adjust if your project structure different)
 $candidates = [
     $base . '/config.php',
     $base . '/../config.php',
@@ -59,7 +58,7 @@ foreach ($_GET as $k => $v) {
 $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
 unset($inputData['vnp_SecureHash']);
 
-// Build hash using urlencode per pair (must match your create code)
+// Build hash
 ksort($inputData);
 $hashData = '';
 $i = 0;
@@ -70,15 +69,11 @@ foreach ($inputData as $key => $value) {
 }
 $ourHash = hash_hmac('sha512', $hashData, defined('VNPAY_HASH_SECRET') ? VNPAY_HASH_SECRET : '');
 
-// Log hash comparison
-file_put_contents($base . '/vnpay_debug.log', date('c') . " RETURN HASHCHECK our={$ourHash} theirs={$vnp_SecureHash} hashData={$hashData}" . PHP_EOL, FILE_APPEND);
-
-// Build app deep link to redirect user (append original query)
+// Deep link redirect
 $appScheme = 'app://vnpay-return';
 $appQuery = http_build_query($_GET);
 $appUrl = $appScheme . ($appQuery ? ('?' . $appQuery) : '');
 
-// parse order id and amount
 $orderRef = $inputData['vnp_TxnRef'] ?? ($_GET['vnp_TxnRef'] ?? '');
 $orderId = 0;
 if ($orderRef !== '') {
@@ -92,47 +87,40 @@ $vnp_Amount = ((float)$vnp_Amount_raw / 100.0) / $USD_RATE;
 $vnp_ResponseCode = $inputData['vnp_ResponseCode'] ?? ($_GET['vnp_ResponseCode'] ?? null);
 $vnp_TransactionNo = $inputData['vnp_TransactionNo'] ?? ($_GET['vnp_TransactionNo'] ?? null);
 
-// If signature invalid -> log and redirect to app (so app may poll); do NOT update DB
+// Validate signature
 if ($ourHash !== $vnp_SecureHash) {
-    file_put_contents($base . '/vnpay_debug.log', date('c') . " RETURN SIGN FAIL: order={$orderId} our={$ourHash} their={$vnp_SecureHash}" . PHP_EOL, FILE_APPEND);
     header("Content-Type: text/html; charset=utf-8");
     echo "<html><body><script>window.location.replace(" . json_encode($appUrl) . ");</script></body></html>";
     exit;
 }
 
-// verify order exists and include user_id so we can clear cart
+// Check order
 $stmt = $conn->prepare("SELECT id, status, total_price, user_id FROM orders WHERE id = ? LIMIT 1");
 $stmt->bind_param("i", $orderId);
 $stmt->execute();
 $order = $stmt->get_result()->fetch_assoc();
-
 if (!$order) {
-    file_put_contents($base . '/vnpay_debug.log', date('c') . " RETURN ORDER NOT FOUND: order={$orderId} params=" . json_encode($inputData) . PHP_EOL, FILE_APPEND);
     header("Content-Type: text/html; charset=utf-8");
     echo "<html><body><script>window.location.replace(" . json_encode($appUrl) . ");</script></body></html>";
     exit;
 }
 
-// compare amounts (float)
 $orderTotal = (float)$order['total_price'];
 if (abs($orderTotal - $vnp_Amount) > 0.01) {
-    file_put_contents($base . '/vnpay_debug.log', date('c') . " RETURN AMOUNT MISMATCH: order={$orderTotal} vnp={$vnp_Amount} params=" . json_encode($inputData) . PHP_EOL, FILE_APPEND);
     header("Content-Type: text/html; charset=utf-8");
     echo "<html><body><script>window.location.replace(" . json_encode($appUrl) . ");</script></body></html>";
     exit;
 }
 
-// Process result
+// ========================= PROCESS RESULT =========================
 if ($vnp_ResponseCode === '00') {
     $conn->begin_transaction();
     try {
-        // mark order paid (idempotent)
         $u = $conn->prepare("UPDATE orders SET status='paid' WHERE id = ? AND status <> 'paid'");
         $u->bind_param("i", $orderId);
         $u->execute();
 
-        // update existing payment if any
-        $upd = $conn->prepare("UPDATE payments SET status='success', transaction_id = ?, amount = ?, created_at = NOW() WHERE order_id = ? AND payment_method = 'vnpay'");
+        $upd = $conn->prepare("UPDATE payments SET status='success', transaction_id=?, amount=?, created_at=NOW() WHERE order_id=? AND payment_method='vnpay'");
         $upd->bind_param("sdi", $vnp_TransactionNo, $vnp_Amount, $orderId);
         $upd->execute();
 
@@ -142,12 +130,9 @@ if ($vnp_ResponseCode === '00') {
             $ins->execute();
         }
 
-        // ---------------------------
-        // NEW: Clear user's cart items
-        // ---------------------------
+        // Clear cart
         $userId = isset($order['user_id']) ? (int)$order['user_id'] : 0;
         if ($userId > 0) {
-            // find cart id for user
             $qc = $conn->prepare("SELECT id FROM cart WHERE user_id = ? LIMIT 1");
             $qc->bind_param("i", $userId);
             $qc->execute();
@@ -157,59 +142,117 @@ if ($vnp_ResponseCode === '00') {
                 $del = $conn->prepare("DELETE FROM cart_items WHERE cart_id = ?");
                 $del->bind_param("i", $cartId);
                 $del->execute();
-                // optional: also delete cart row if you prefer
-                // $delCart = $conn->prepare("DELETE FROM cart WHERE id = ?");
-                // $delCart->bind_param("i", $cartId); $delCart->execute();
-                file_put_contents($base . '/vnpay_debug.log', date('c') . " RETURN CLEARED CART: user={$userId} cart_id={$cartId}" . PHP_EOL, FILE_APPEND);
-            } else {
-                file_put_contents($base . '/vnpay_debug.log', date('c') . " RETURN NO CART FOR USER: user={$userId}" . PHP_EOL, FILE_APPEND);
             }
         }
 
         $conn->commit();
-        file_put_contents($base . '/vnpay_debug.log', date('c') . " RETURN PROCESSED SUCCESS: order={$orderId} txn={$vnp_TransactionNo} amount={$vnp_Amount}" . PHP_EOL, FILE_APPEND);
-    } catch (Exception $e) {
+
+        // ✅ SEND EMAIL SUCCESS
+        require_once __DIR__ . '/../../PHPMailer-master/src/Exception.php';
+        require_once __DIR__ . '/../../PHPMailer-master/src/PHPMailer.php';
+        require_once __DIR__ . '/../../PHPMailer-master/src/SMTP.php';
+
+
+        $qUser = $conn->prepare("SELECT email, username FROM users WHERE id = ?");
+        $qUser->bind_param("i", $userId);
+        $qUser->execute();
+        $uinfo = $qUser->get_result()->fetch_assoc();
+
+        if ($uinfo && !empty($uinfo['email'])) {
+            $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+            try {
+                $mail->isSMTP();
+                $mail->Host = 'smtp.gmail.com';
+                $mail->SMTPAuth = true;
+                $mail->Username = 'group4.sportstore@gmail.com';
+                $mail->Password = 'szzu twhw yayc spad';
+                $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+                $mail->Port = 587;
+                $mail->CharSet = 'UTF-8';
+
+                $mail->setFrom('group4.sportstore@gmail.com', 'Nike Store');
+                $mail->addAddress($uinfo['email'], $uinfo['username']);
+                $mail->Subject = "Nike Store - Thanh toán thành công đơn hàng #$orderId";
+                $mail->Body = "Xin chào {$uinfo['username']},\n\nĐơn hàng #$orderId của bạn đã được thanh toán thành công qua VNPay.\nChúng tôi sẽ sớm xử lý và giao hàng.\n\nCảm ơn bạn đã mua sắm tại Nike Store!";
+                $mail->send();
+            } catch (\Exception $e) {
+                file_put_contents($base . '/vnpay_debug.log', date('c') . " EMAIL SEND FAIL SUCCESS: " . $e->getMessage() . PHP_EOL, FILE_APPEND);
+            }
+        }
+
+    } catch (\Exception $e) {
         $conn->rollback();
-        file_put_contents($base . '/vnpay_debug.log', date('c') . " RETURN DB ERROR: " . $e->getMessage() . PHP_EOL, FILE_APPEND);
+        file_put_contents($base . '/vnpay_debug.log', date('c') . " DB ERROR: " . $e->getMessage() . PHP_EOL, FILE_APPEND);
     }
 } else {
-    // failed -> mark payment failed, cancel order, restock items (idempotent attempts)
     $conn->begin_transaction();
     try {
-        $up = $conn->prepare("UPDATE orders SET status='cancelled' WHERE id = ?");
+        $up = $conn->prepare("UPDATE orders SET status='cancelled' WHERE id=?");
         $up->bind_param("i", $orderId);
         $up->execute();
 
-        $updP = $conn->prepare("UPDATE payments SET status='failed', transaction_id = ?, amount = ?, created_at = NOW() WHERE order_id = ? AND payment_method = 'vnpay'");
+        $updP = $conn->prepare("UPDATE payments SET status='failed', transaction_id=?, amount=?, created_at=NOW() WHERE order_id=? AND payment_method='vnpay'");
         $updP->bind_param("sdi", $vnp_TransactionNo, $vnp_Amount, $orderId);
         $updP->execute();
 
-        // restock items safely
-        $getItems = $conn->prepare("SELECT product_id, variant_id, quantity FROM order_items WHERE order_id = ?");
+        // Restock
+        $getItems = $conn->prepare("SELECT product_id, variant_id, quantity FROM order_items WHERE order_id=?");
         $getItems->bind_param("i", $orderId);
         $getItems->execute();
         $items = $getItems->get_result()->fetch_all(MYSQLI_ASSOC);
         foreach ($items as $it) {
             $qty = (int)$it['quantity'];
             if ($it['variant_id'] !== null && $it['variant_id'] !== '') {
-                $s = $conn->prepare("UPDATE product_variants SET stock = stock + ? WHERE id = ?");
+                $s = $conn->prepare("UPDATE product_variants SET stock=stock+? WHERE id=?");
                 $s->bind_param("ii", $qty, $it['variant_id']);
             } else {
-                $s = $conn->prepare("UPDATE products SET stock = stock + ? WHERE id = ?");
+                $s = $conn->prepare("UPDATE products SET stock=stock+? WHERE id=?");
                 $s->bind_param("ii", $qty, $it['product_id']);
             }
             $s->execute();
         }
 
         $conn->commit();
-        file_put_contents($base . '/vnpay_debug.log', date('c') . " RETURN PROCESSED FAILED: order={$orderId}" . PHP_EOL, FILE_APPEND);
-    } catch (Exception $e) {
+
+        // ❌ SEND EMAIL FAILED
+        require_once __DIR__ . '/../../PHPMailer-master/src/Exception.php';
+        require_once __DIR__ . '/../../PHPMailer-master/src/PHPMailer.php';
+        require_once __DIR__ . '/../../PHPMailer-master/src/SMTP.php';
+
+
+        $qUser = $conn->prepare("SELECT email, username FROM users WHERE id=?");
+        $qUser->bind_param("i", $order['user_id']);
+        $qUser->execute();
+        $uinfo = $qUser->get_result()->fetch_assoc();
+
+        if ($uinfo && !empty($uinfo['email'])) {
+            $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+            try {
+                $mail->isSMTP();
+                $mail->Host = 'smtp.gmail.com';
+                $mail->SMTPAuth = true;
+                $mail->Username = 'group4.sportstore@gmail.com';
+                $mail->Password = 'szzu twhw yayc spad';
+                $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+                $mail->Port = 587;
+                $mail->CharSet = 'UTF-8';
+
+                $mail->setFrom('group4.sportstore@gmail.com', 'Nike Store');
+                $mail->addAddress($uinfo['email'], $uinfo['username']);
+                $mail->Subject = "Nike Store - Thanh toán thất bại đơn hàng #$orderId";
+                $mail->Body = "Xin chào {$uinfo['username']},\n\nThanh toán VNPay cho đơn hàng #$orderId không thành công. Đơn hàng đã được hủy và hàng hóa đã hoàn về kho.\n\nNếu bạn cần hỗ trợ, vui lòng liên hệ bộ phận CSKH của chúng tôi.";
+                $mail->send();
+            } catch (\Exception $e) {
+                file_put_contents($base . '/vnpay_debug.log', date('c') . " EMAIL SEND FAIL FAIL: " . $e->getMessage() . PHP_EOL, FILE_APPEND);
+            }
+        }
+
+    } catch (\Exception $e) {
         $conn->rollback();
-        file_put_contents($base . '/vnpay_debug.log', date('c') . " RETURN FAIL DB ERROR: " . $e->getMessage() . PHP_EOL, FILE_APPEND);
+        file_put_contents($base . '/vnpay_debug.log', date('c') . " FAIL DB ERROR: " . $e->getMessage() . PHP_EOL, FILE_APPEND);
     }
 }
 
-// Redirect to app deep link so app receives intent (with original query)
 header("Content-Type: text/html; charset=utf-8");
 $appEscaped = htmlspecialchars($appUrl, ENT_QUOTES, 'UTF-8');
 ?>
@@ -225,7 +268,7 @@ $appEscaped = htmlspecialchars($appUrl, ENT_QUOTES, 'UTF-8');
 <body>
   <h3>Đang chuyển về ứng dụng...</h3>
   <p>Nếu ứng dụng không mở, nhấn nút bên dưới hoặc chờ vài giây.</p>
-  <p><a id="openApp" href="<?php echo $appEscaped; ?>">Mở ứng dụng</a></p>
+  <p><a href="<?php echo $appEscaped; ?>">Mở ứng dụng</a></p>
   <script>
     try {
       window.location.replace(<?php echo json_encode($appUrl); ?>);
