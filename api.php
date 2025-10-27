@@ -343,10 +343,21 @@ if ($action === 'get_products_by_category') {
     $page_size = isset($_GET['page_size']) ? (int)$_GET['page_size'] : 20;
     $page_size = min(max(1, $page_size), 50);
     $offset = ($page - 1) * $page_size;
+    $now = date('Y-m-d H:i:s'); // NEW: Lấy thời gian hiện tại để so sánh khuyến mãi
+
     $sql = "
-      SELECT p.id, p.name, p.price,
-        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) AS image_url
+      SELECT 
+        p.id, 
+        p.name, 
+        p.price,
+        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_main = 1 LIMIT 1) AS image_url,
+        COALESCE(promo.discount_percent, 0) AS discount_percent,
+        COALESCE(ROUND(p.price * (1 - promo.discount_percent/100), 2), p.price) AS final_price
       FROM products p
+      LEFT JOIN promotions promo ON p.id = promo.product_id 
+          AND promo.is_active = 1 
+          AND promo.starts_at <= ? 
+          AND promo.ends_at >= ?
       WHERE p.is_active = 1
     ";
     if ($category_id > 0) {
@@ -355,9 +366,9 @@ if ($action === 'get_products_by_category') {
     $sql .= " ORDER BY p.created_at DESC LIMIT ? OFFSET ?";
     $stmt = $conn->prepare($sql);
     if ($category_id > 0) {
-        $stmt->bind_param("iii", $category_id, $page_size, $offset);
+        $stmt->bind_param("ssiii", $now, $now, $category_id, $page_size, $offset);
     } else {
-        $stmt->bind_param("ii", $page_size, $offset);
+        $stmt->bind_param("ssii", $now, $now, $page_size, $offset);
     }
     $stmt->execute();
     $res = $stmt->get_result();
@@ -366,6 +377,9 @@ if ($action === 'get_products_by_category') {
         $r['id'] = (int)$r['id'];
         $r['price'] = (float)$r['price'];
         $r['image_url'] = $r['image_url'] ? abs_url($r['image_url']) : '';
+        // NEW: Cast các trường discount
+        $r['discount_percent'] = (float)$r['discount_percent'];
+        $r['final_price'] = (float)$r['final_price'];
         $items[] = $r;
     }
     echo json_encode(["success" => true, "data" => $items, "pagination" => ["page"=>$page, "page_size"=>$page_size]], JSON_UNESCAPED_UNICODE);
@@ -378,10 +392,27 @@ if ($action === 'get_product_details') {
     if ($product_id <= 0) {
         echo json_encode(["success"=>false,"message"=>"Missing product_id"]); exit;
     }
+    $now = date('Y-m-d H:i:s'); // NEW: Lấy thời gian hiện tại để so sánh khuyến mãi
 
-    // product
-    $pstmt = $conn->prepare("SELECT id,name,description,price,stock,size_type FROM products WHERE id = ? AND is_active = 1 LIMIT 1");
-    $pstmt->bind_param("i", $product_id);
+    // product with promotion details
+    $pstmt = $conn->prepare("
+        SELECT 
+            p.id, 
+            p.name, 
+            p.description, 
+            p.price, 
+            p.stock, 
+            p.size_type,
+            COALESCE(promo.discount_percent, 0) AS discount_percent,
+            COALESCE(ROUND(p.price * (1 - promo.discount_percent/100), 2), p.price) AS final_price
+        FROM products p
+        LEFT JOIN promotions promo ON p.id = promo.product_id
+            AND promo.is_active = 1
+            AND promo.starts_at <= ? 
+            AND promo.ends_at >= ?
+        WHERE p.id = ? AND p.is_active = 1 LIMIT 1
+    ");
+    $pstmt->bind_param("ssi", $now, $now, $product_id); // NEW: Thay đổi bind_param
     $pstmt->execute();
     $product = $pstmt->get_result()->fetch_assoc();
     if (!$product) { echo json_encode(["success"=>false,"message"=>"Product not found"]); exit; }
@@ -415,6 +446,9 @@ if ($action === 'get_product_details') {
     // cast types for consistency
     $product['id'] = (int)$product['id'];
     $product['price'] = (float)$product['price'];
+    // NEW: Cast các trường discount
+    $product['discount_percent'] = (float)$product['discount_percent'];
+    $product['final_price'] = (float)$product['final_price'];
     $product['images'] = $imgs;
     $product['variants'] = $vars;
 
@@ -510,32 +544,58 @@ if ($action === 'add_to_cart') {
 if ($action === 'get_cart') {
     $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
     if ($user_id <= 0) { echo json_encode(["success"=>false,"message"=>"Missing user_id"]); exit; }
+    $now = date('Y-m-d H:i:s'); // NEW: Lấy thời gian hiện tại để so sánh khuyến mãi
+
     $sql = "
       SELECT ci.id AS item_id, ci.quantity, ci.variant_id,
              p.id AS product_id, p.name AS product_name, p.price AS product_price,
              pv.size AS variant_size, pv.price AS variant_price,
-             (SELECT image_url FROM product_images WHERE product_id=p.id AND is_main=1 LIMIT 1) AS image_url
+             (SELECT image_url FROM product_images WHERE product_id=p.id AND is_main=1 LIMIT 1) AS image_url,
+             COALESCE(promo.discount_percent, 0) AS discount_percent,
+             COALESCE(ROUND(p.price * (1 - promo.discount_percent/100), 2), p.price) AS final_price_product_promotion,
+             COALESCE(ROUND(pv.price * (1 - promo.discount_percent/100), 2), pv.price, p.price) AS final_price_variant_promotion -- NEW: Calculate final price based on variant or product price, with promotion
       FROM cart c
       JOIN cart_items ci ON ci.cart_id = c.id
       JOIN products p ON p.id = ci.product_id
       LEFT JOIN product_variants pv ON pv.id = ci.variant_id
+      LEFT JOIN promotions promo ON p.id = promo.product_id 
+          AND promo.is_active = 1 
+          AND promo.starts_at <= ? 
+          AND promo.ends_at >= ?
       WHERE c.user_id = ?
     ";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $user_id);
+    $stmt->bind_param("ssi", $now, $now, $user_id); // NEW: Thêm $now vào bind_param
     $stmt->execute();
     $res = $stmt->get_result();
     $items = [];
     $total = 0.0;
     $count = 0;
     while ($r = $res->fetch_assoc()) {
-        $price = $r['variant_price'] === null ? (float)$r['product_price'] : (float)$r['variant_price'];
+        // Determine the base price (either product price or variant price)
+        $base_price = $r['variant_price'] === null ? (float)$r['product_price'] : (float)$r['variant_price'];
         $qty = (int)$r['quantity'];
-        $subtotal = $price * $qty;
+        
+        // Determine the final price to display and for subtotal calculation
+        $discount_percent = (float)$r['discount_percent'];
+        $final_price = $base_price; // Default to base price
+        if ($discount_percent > 0) {
+            // If there's a product-level promotion, use the calculated final_price for product/variant
+            // Prioritize variant price if exists, then apply promotion
+            if ($r['variant_price'] !== null) {
+                 $final_price = (float)$r['final_price_variant_promotion'];
+            } else {
+                 $final_price = (float)$r['final_price_product_promotion'];
+            }
+        }
+        
+        $subtotal = $final_price * $qty; // Calculate subtotal using final_price
         $total += $subtotal;
-        $count += $qty;
+        $count += $qty;        
         $r['image_url'] = $r['image_url'] ? abs_url($r['image_url']) : '';
-        $r['price'] = $price;
+        $r['price'] = $base_price; // This is the original price (product or variant)
+        $r['final_price'] = $final_price; // The price after discount
+        $r['discount_percent'] = $discount_percent; // The discount percent
         $r['subtotal'] = $subtotal;
         // cast numeric
         $r['product_id'] = (int)$r['product_id'];
@@ -708,62 +768,80 @@ if ($action === 'create_order') {
         $subtotal = 0.0;
         $calculated_items = [];
 
-        foreach ($items as $it) {
-            $pid = (int)($it['product_id'] ?? 0);
-            $vid = isset($it['variant_id']) && $it['variant_id'] !== null ? (int)$it['variant_id'] : null;
-            $qty = max(0, (int)($it['quantity'] ?? 0));
-            if ($pid <= 0 || $qty <= 0) throw new Exception("Invalid item data in order");
+foreach ($items as $it) {
+    $pid = (int)($it['product_id'] ?? 0);
+    $vid = isset($it['variant_id']) && $it['variant_id'] !== null ? (int)$it['variant_id'] : null;
+    $qty = max(0, (int)($it['quantity'] ?? 0));
+    if ($pid <= 0 || $qty <= 0) throw new Exception("Invalid item data in order");
 
-            $unit_price = 0.0;
+    $unit_price = 0.0;
 
-            if ($vid) {
-                $stmt_price = $conn->prepare("
-                    SELECT pv.id AS vid, IFNULL(pv.price, p.price) AS unit_price, p.id AS product_id
-                    FROM product_variants pv
-                    JOIN products p ON pv.product_id = p.id
-                    WHERE pv.id = ? LIMIT 1
-                ");
-                $stmt_price->bind_param("i", $vid);
-                $stmt_price->execute();
-                $price_res = $stmt_price->get_result();
-                $price_row = $price_res->fetch_assoc();
-                if (!$price_row) throw new Exception("Variant not found for id: " . $vid);
-                $unit_price = (float)$price_row['unit_price'];
-                $actual_product_id = (int)$price_row['product_id'];
+    if ($vid) {
+        $stmt_price = $conn->prepare("
+            SELECT pv.id AS vid, IFNULL(pv.price, p.price) AS unit_price, p.id AS product_id
+            FROM product_variants pv
+            JOIN products p ON pv.product_id = p.id
+            WHERE pv.id = ? LIMIT 1
+        ");
+        $stmt_price->bind_param("i", $vid);
+        $stmt_price->execute();
+        $price_res = $stmt_price->get_result();
+        $price_row = $price_res->fetch_assoc();
+        if (!$price_row) throw new Exception("Variant not found for id: " . $vid);
+        $unit_price = (float)$price_row['unit_price'];
+        $actual_product_id = (int)$price_row['product_id'];
+    } else {
+        $stmt_price = $conn->prepare("SELECT price FROM products WHERE id = ? LIMIT 1");
+        $stmt_price->bind_param("i", $pid);
+        $stmt_price->execute();
+        $price_res = $stmt_price->get_result();
+        $price_row = $price_res->fetch_assoc();
+        if (!$price_row) throw new Exception("Product not found for id: " . $pid);
+        $unit_price = (float)$price_row['price'];
+        $actual_product_id = $pid;
+    }
 
-                $u = $conn->prepare("UPDATE product_variants SET stock = stock - ? WHERE id = ? AND stock >= ?");
-                $u->bind_param("iii", $qty, $vid, $qty);
-                $u->execute();
-                if ($u->affected_rows === 0) throw new Exception("Out of stock for variant id: " . $vid);
+    // ✅ Áp dụng giảm giá (chung cho cả variant và product)
+    $now = date('Y-m-d H:i:s');
+    $promo_sql = "SELECT discount_percent 
+                  FROM promotions 
+                  WHERE product_id = ? AND is_active = 1 
+                    AND starts_at <= ? AND ends_at >= ? 
+                  ORDER BY id DESC LIMIT 1";
+    $promo_stmt = $conn->prepare($promo_sql);
+    $promo_stmt->bind_param("iss", $actual_product_id, $now, $now);
+    $promo_stmt->execute();
+    $promo = $promo_stmt->get_result()->fetch_assoc();
+    if ($promo && $promo['discount_percent'] > 0) {
+        $unit_price = $unit_price * (1 - ((float)$promo['discount_percent'] / 100.0));
+    }
 
-                // sync product stock from variants
-                $sync = $conn->prepare("UPDATE products SET stock = (SELECT IFNULL(SUM(stock),0) FROM product_variants WHERE product_id = ?) WHERE id = ?");
-                $sync->bind_param("ii", $actual_product_id, $actual_product_id);
-                $sync->execute();
+    // ✅ Giảm kho
+    if ($vid) {
+        $u = $conn->prepare("UPDATE product_variants SET stock = stock - ? WHERE id = ? AND stock >= ?");
+        $u->bind_param("iii", $qty, $vid, $qty);
+        $u->execute();
+        if ($u->affected_rows === 0) throw new Exception("Out of stock for variant id: " . $vid);
 
-            } else {
-                $stmt_price = $conn->prepare("SELECT price, stock FROM products WHERE id = ? LIMIT 1");
-                $stmt_price->bind_param("i", $pid);
-                $stmt_price->execute();
-                $price_res = $stmt_price->get_result();
-                $price_row = $price_res->fetch_assoc();
-                if (!$price_row) throw new Exception("Product not found for id: " . $pid);
-                $unit_price = (float)$price_row['price'];
+        // sync product stock
+        $sync = $conn->prepare("UPDATE products SET stock = (SELECT IFNULL(SUM(stock),0) FROM product_variants WHERE product_id = ?) WHERE id = ?");
+        $sync->bind_param("ii", $actual_product_id, $actual_product_id);
+        $sync->execute();
+    } else {
+        $u = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?");
+        $u->bind_param("iii", $qty, $pid, $qty);
+        $u->execute();
+        if ($u->affected_rows === 0) throw new Exception("Out of stock for product ID: " . $pid);
+    }
 
-                $u = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?");
-                $u->bind_param("iii", $qty, $pid, $qty);
-                $u->execute();
-                if ($u->affected_rows === 0) throw new Exception("Out of stock for product ID: " . $pid);
-            }
-
-            $subtotal += $unit_price * $qty;
-            $calculated_items[] = [
-                'product_id' => $pid,
-                'variant_id' => $vid,
-                'quantity'   => $qty,
-                'unit_price' => $unit_price
-            ];
-        }
+    $subtotal += $unit_price * $qty;
+    $calculated_items[] = [
+        'product_id' => $pid,
+        'variant_id' => $vid,
+        'quantity'   => $qty,
+        'unit_price' => $unit_price
+    ];
+}
 
         $shipping = ($subtotal > 100) ? 0.0 : 5.0;
         $total = $subtotal + $shipping;
@@ -854,55 +932,75 @@ if ($action === 'create_vnpay_payment') {
         $subtotal = 0.0;
         $calculated_items = [];
 
-        foreach ($items as $it) {
-            $pid = isset($it['product_id']) ? (int)$it['product_id'] : 0;
-            $vid = isset($it['variant_id']) && $it['variant_id'] !== null ? (int)$it['variant_id'] : null;
-            $qty = isset($it['quantity']) ? max(0,(int)$it['quantity']) : 0;
-            if ($pid <= 0 || $qty <= 0) throw new Exception("Invalid item");
+foreach ($items as $it) {
+    $pid = isset($it['product_id']) ? (int)$it['product_id'] : 0;
+    $vid = isset($it['variant_id']) && $it['variant_id'] !== null ? (int)$it['variant_id'] : null;
+    $qty = isset($it['quantity']) ? max(0,(int)$it['quantity']) : 0;
+    if ($pid <= 0 || $qty <= 0) throw new Exception("Invalid item");
 
-            if ($vid) {
-                $s = $conn->prepare("SELECT pv.id as vid, pv.price as vprice, pv.stock as vstock, p.price as pprice, p.id as product_id 
-                                     FROM product_variants pv 
-                                     JOIN products p ON pv.product_id = p.id 
-                                     WHERE pv.id = ? LIMIT 1");
-                $s->bind_param("i", $vid);
-                $s->execute();
-                $row = $s->get_result()->fetch_assoc();
-                if (!$row) throw new Exception("Variant not found");
-                $unit_price = $row['vprice'] === null ? (float)$row['pprice'] : (float)$row['vprice'];
+    $unit_price = 0.0;
+    $actual_product_id = $pid;
 
-                $u = $conn->prepare("UPDATE product_variants SET stock = stock - ? WHERE id = ? AND stock >= ?");
-                $u->bind_param("iii", $qty, $vid, $qty);
-                $u->execute();
-                if ($u->affected_rows === 0) throw new Exception("Out of stock or concurrent order for variant " . $vid);
+    if ($vid) {
+        $s = $conn->prepare("SELECT pv.id as vid, IFNULL(pv.price, p.price) as unit_price, p.id as product_id 
+                             FROM product_variants pv 
+                             JOIN products p ON pv.product_id = p.id 
+                             WHERE pv.id = ? LIMIT 1");
+        $s->bind_param("i", $vid);
+        $s->execute();
+        $row = $s->get_result()->fetch_assoc();
+        if (!$row) throw new Exception("Variant not found");
+        $unit_price = (float)$row['unit_price'];
+        $actual_product_id = (int)$row['product_id'];
+    } else {
+        $s = $conn->prepare("SELECT price FROM products WHERE id = ? LIMIT 1");
+        $s->bind_param("i", $pid);
+        $s->execute();
+        $row = $s->get_result()->fetch_assoc();
+        if (!$row) throw new Exception("Product not found");
+        $unit_price = (float)$row['price'];
+    }
 
-                $productIdForSync = (int)$row['product_id'];
-                $sync = $conn->prepare("UPDATE products SET stock = (SELECT IFNULL(SUM(stock),0) FROM product_variants WHERE product_id = ?) WHERE id = ?");
-                $sync->bind_param("ii", $productIdForSync, $productIdForSync);
-                $sync->execute();
+    // ✅ Áp dụng giảm giá nếu có
+    $now = date('Y-m-d H:i:s');
+    $promo_sql = "SELECT discount_percent 
+                  FROM promotions 
+                  WHERE product_id = ? AND is_active = 1 
+                    AND starts_at <= ? AND ends_at >= ? 
+                  ORDER BY id DESC LIMIT 1";
+    $promo_stmt = $conn->prepare($promo_sql);
+    $promo_stmt->bind_param("iss", $actual_product_id, $now, $now);
+    $promo_stmt->execute();
+    $promo = $promo_stmt->get_result()->fetch_assoc();
+    if ($promo && $promo['discount_percent'] > 0) {
+        $unit_price = $unit_price * (1 - ((float)$promo['discount_percent'] / 100.0));
+    }
 
-            } else {
-                $s = $conn->prepare("SELECT price, stock FROM products WHERE id = ? LIMIT 1");
-                $s->bind_param("i", $pid);
-                $s->execute();
-                $row = $s->get_result()->fetch_assoc();
-                if (!$row) throw new Exception("Product not found");
-                $unit_price = (float)$row['price'];
+    // ✅ Giảm kho
+    if ($vid) {
+        $u = $conn->prepare("UPDATE product_variants SET stock = stock - ? WHERE id = ? AND stock >= ?");
+        $u->bind_param("iii", $qty, $vid, $qty);
+        $u->execute();
+        if ($u->affected_rows === 0) throw new Exception("Out of stock for variant " . $vid);
 
-                $u = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?");
-                $u->bind_param("iii", $qty, $pid, $qty);
-                $u->execute();
-                if ($u->affected_rows === 0) throw new Exception("Out of stock or concurrent order for product " . $pid);
-            }
+        $sync = $conn->prepare("UPDATE products SET stock = (SELECT IFNULL(SUM(stock),0) FROM product_variants WHERE product_id = ?) WHERE id = ?");
+        $sync->bind_param("ii", $actual_product_id, $actual_product_id);
+        $sync->execute();
+    } else {
+        $u = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?");
+        $u->bind_param("iii", $qty, $pid, $qty);
+        $u->execute();
+        if ($u->affected_rows === 0) throw new Exception("Out of stock or concurrent order for product " . $pid);
+    }
 
-            $subtotal += $unit_price * $qty;
-            $calculated_items[] = [
-                'product_id' => $pid,
-                'variant_id' => $vid,
-                'quantity'   => $qty,
-                'unit_price' => $unit_price
-            ];
-        }
+    $subtotal += $unit_price * $qty;
+    $calculated_items[] = [
+        'product_id' => $pid,
+        'variant_id' => $vid,
+        'quantity'   => $qty,
+        'unit_price' => $unit_price
+    ];
+}
 
         $shipping = ($subtotal > 100) ? 0.0 : 5.0;
         $total = $subtotal + $shipping;
@@ -1384,6 +1482,30 @@ if ($action === 'get_favorite') {
     exit;
 }
 
+// ================== GET ACTIVE PROMOTIONS ==================
+if ($action === 'get_promotions') {
+    header('Content-Type: application/json; charset=utf-8');
+    $now = date('Y-m-d H:i:s');
+    $sql = "SELECT p.id AS promo_id, p.product_id, pr.name, pr.price, p.discount_percent, 
+                   p.starts_at, p.ends_at, 
+                   ROUND(pr.price * (1 - p.discount_percent/100), 2) AS final_price,
+                   pi.image_url
+            FROM promotions p
+            JOIN products pr ON p.product_id = pr.id
+            LEFT JOIN product_images pi ON pi.product_id = pr.id AND pi.is_main = 1
+            WHERE p.is_active = 1
+              AND p.starts_at <= ?
+              AND p.ends_at >= ?
+              AND pr.is_active = 1";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ss", $now, $now);
+    $stmt->execute();
+    $res = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+    echo json_encode(["success" => true, "promotions" => $res], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
 
 
