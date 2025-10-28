@@ -1,0 +1,763 @@
+[2025-10-28 13:19:04]
+PROMPT:
+Người dùng tìm kiếm: nike
+
+Danh sách sản phẩm liên quan:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+
+[2025-10-28 13:19:27]
+PROMPT:
+Người dùng tìm kiếm: nike
+
+Danh sách sản phẩm liên quan:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+
+[2025-10-28 13:19:30]
+PROMPT:
+Người dùng tìm kiếm: nike
+
+Danh sách sản phẩm liên quan:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+
+[2025-10-28 13:20:55]
+PROMPT:
+Người dùng tìm kiếm: nike
+
+Danh sách sản phẩm liên quan:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+
+[2025-10-28 13:21:32]
+PROMPT:
+Người dùng tìm kiếm: nike
+
+Danh sách sản phẩm liên quan:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+
+[2025-10-28 13:22:17]
+PROMPT:
+Người dùng tìm kiếm: nike
+
+Danh sách sản phẩm liên quan:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "error": {
+    "code": 404,
+    "message": "models/gemini-pro is not found for API version v1, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+
+[2025-10-28 13:23:07]
+PROMPT:
+Người dùng tìm kiếm: nike
+
+Danh sách sản phẩm liên quan:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "error": {
+    "code": 404,
+    "message": "models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+
+[2025-10-28 13:23:18]
+PROMPT:
+Người dùng tìm kiếm: nike
+
+Danh sách sản phẩm liên quan:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "error": {
+    "code": 404,
+    "message": "models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+
+[2025-10-28 13:25:27]
+PROMPT:
+Người dùng tìm kiếm: nike
+
+Danh sách sản phẩm liên quan:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-pro is not found for API version v1, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+
+[2025-10-28 13:26:53]
+PROMPT:
+Người dùng tìm kiếm: nike
+
+Danh sách sản phẩm liên quan:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-pro is not found for API version v1, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+
+[2025-10-28 13:28:23]
+PROMPT:
+Người dùng tìm kiếm: nike
+
+Danh sách sản phẩm liên quan:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+
+[2025-10-28 13:28:45]
+PROMPT:
+Người dùng tìm kiếm: nike
+
+Danh sách sản phẩm liên quan:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+
+[2025-10-28 14:40:53]
+PROMPT:
+Người dùng tìm kiếm: nike
+
+Danh sách sản phẩm liên quan:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+
+[2025-10-28 14:41:32]
+PROMPT:
+Người dùng tìm kiếm: Giày chuyên chạy bộ
+
+Danh sách sản phẩm liên quan:
+Không tìm thấy sản phẩm nào phù hợp.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+
+[2025-10-28 14:43:59]
+PROMPT:
+Người dùng tìm kiếm: Giày chuyên chạy bộ
+
+Danh sách sản phẩm liên quan:
+Không tìm thấy sản phẩm nào phù hợp.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Dựa trên tìm kiếm \"Giày chuyên chạy bộ\" và việc không tìm thấy sản phẩm cụ thể, đây là một số gợi ý về các loại giày chạy bộ chuyên dụng bạn có thể cân nhắc:\n\n1.  **Giày đệm tối ưu:** Giảm chấn hiệu quả, mang lại cảm giác êm ái cho những cự ly dài.\n2.  **Giày hỗ trợ ổn định:** Thiết kế đặc biệt giúp kiểm soát chuyển động, phù hợp cho người có xu hướng sấp bàn chân.\n3.  **Giày tốc độ và phản hồi:** Nhẹ và có đế phản hồi lực cao, lý tưởng cho các buổi tập nhanh hoặc thi đấu.\n4.  **Giày chạy địa hình (Trail):** Đế ngoài gai góc tăng cường độ bám, bảo vệ chân trên mọi loại địa hình.\n5.  **Giày chạy bộ hàng ngày:** Cân bằng giữa đệm, độ bền và sự linh hoạt, phù hợp cho tập luyện thường xuyên."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 76,
+    "candidatesTokenCount": 211,
+    "totalTokenCount": 1705,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 76
+      }
+    ],
+    "thoughtsTokenCount": 1418
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "oMgAabGnAseE1e8PjMCd-A8"
+}
+
+
+[2025-10-28 14:46:09]
+PROMPT:
+Người dùng tìm kiếm: giày
+
+Danh sách sản phẩm liên quan:
+Không tìm thấy sản phẩm nào phù hợp.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Dưới đây là một số gợi ý có thể hữu ích:\n\n*   **Thử tìm kiếm từ khóa khác:** Có thể bạn muốn tìm kiếm \"giày thể thao\", \"giày cao gót\" hoặc \"dép\".\n*   **Kiểm tra lại chính tả:** Đảm bảo bạn đã gõ đúng từ \"giày\".\n*   **Xem các danh mục liên quan:** Khám phá các danh mục như \"giày nam\", \"giày nữ\" hoặc \"giày trẻ em\".\n*   **Liên hệ bộ phận hỗ trợ:** Để được tư vấn trực tiếp về các loại giày phù hợp với nhu cầu của bạn.\n*   **Đăng ký nhận thông báo:** Chúng tôi sẽ gửi email cho bạn ngay khi có các sản phẩm giày mới về hàng."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 72,
+    "candidatesTokenCount": 166,
+    "totalTokenCount": 958,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 72
+      }
+    ],
+    "thoughtsTokenCount": 720
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "IskAabKCFOGXvr0P4KSo-QI"
+}
+
+
+[2025-10-28 14:46:38]
+PROMPT:
+Người dùng tìm kiếm: giày nike
+
+Danh sách sản phẩm liên quan:
+Không tìm thấy sản phẩm nào phù hợp.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Dưới đây là một số gợi ý dựa trên tìm kiếm của bạn:\n\n1.  **Giày thể thao**: Mở rộng tìm kiếm để xem các lựa chọn khác.\n2.  **Giày Nike nam** hoặc **Giày Nike nữ**: Lọc theo giới tính để tìm sản phẩm phù hợp hơn.\n3.  **Kiểm tra chính tả \"Nike\"**: Đảm bảo từ khóa tìm kiếm chính xác.\n4.  **Giày thể thao các thương hiệu khác**: Khám phá thêm lựa chọn từ các nhãn hiệu phổ biến.\n5.  **Giày Nike theo kích cỡ hoặc màu sắc**: Thêm chi tiết cụ thể để tìm sản phẩm mong muốn."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 73,
+    "candidatesTokenCount": 147,
+    "totalTokenCount": 1257,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 73
+      }
+    ],
+    "thoughtsTokenCount": 1037
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "PskAaYGPNrmXosUPvqzcqQI"
+}
+
+
+[2025-10-28 14:46:59]
+PROMPT:
+Người dùng tìm kiếm: nike
+
+Danh sách sản phẩm liên quan:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Dưới đây là 5 gợi ý sản phẩm Nike:\n\n*   Nike Air Max 270 (Men) (ID:1) - Nike’s first lifestyle Air Max với bộ đệm khí lớn.\n*   Nike Air Force 1 '07 (Men) (ID:2) - Phong cách cổ điển từ năm 1982 với đệm khí Nike Air.\n*   Nike Dri-FIT Legend Tee (ID:4) - Áo thun vải mềm mại với công nghệ Dri-FIT thấm hút mồ hôi.\n*   Nike Pegasus 41 (Men) (ID:5) - Giày chạy đường bộ phản hồi tốt hàng ngày — Pegasus 41.\n*   Nike ZoomX Vaporfly Next (Men) (ID:6) - Giày đua với bọt ZoomX — Vaporfly Next."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 270,
+    "candidatesTokenCount": 182,
+    "totalTokenCount": 1064,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 270
+      }
+    ],
+    "thoughtsTokenCount": 612
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "U8kAabHULeGi1e8P_IX2sAU"
+}
+
+
+[2025-10-28 14:47:50]
+PROMPT:
+Người dùng tìm kiếm: tôi cần balo đựng đồ
+
+Danh sách sản phẩm liên quan:
+Không tìm thấy sản phẩm nào phù hợp.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Dưới đây là 5 gợi ý ngắn gọn dựa trên nhu cầu của bạn:\n\n1.  **Balo đựng laptop:** Lý do: Có ngăn chống sốc bảo vệ thiết bị và các ngăn phụ tiện lợi cho đồ dùng cá nhân.\n2.  **Balo học sinh/sinh viên:** Lý do: Thiết kế nhiều ngăn, dung tích rộng rãi phù hợp mang sách vở và đồ dùng hàng ngày.\n3.  **Balo du lịch nhỏ (daypack):** Lý do: Kích thước vừa phải, đủ chỗ cho đồ dùng cá nhân khi đi chơi, dã ngoại ngắn ngày.\n4.  **Balo đa năng (urban backpack):** Lý do: Thiết kế hiện đại, phù hợp cho cả đi làm, đi học và dạo phố, đựng được nhiều loại đồ.\n5.  **Balo chống nước:** Lý do: Bảo vệ đồ đạc bên trong khỏi mưa hoặc ẩm ướt, an toàn cho mọi điều kiện thời tiết."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 76,
+    "candidatesTokenCount": 207,
+    "totalTokenCount": 591,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 76
+      }
+    ],
+    "thoughtsTokenCount": 308
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "hskAaY-8LJ771e8PsJTr-QY"
+}
+
+
+[2025-10-28 14:48:56]
+PROMPT:
+Người dùng tìm kiếm: Các sản phẩm gợi ý khi đi du lịch đang có mặt tại cửa hàng
+
+Danh sách sản phẩm liên quan:
+Không tìm thấy sản phẩm nào phù hợp.
+
+Hãy đưa ra tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 dòng lý do. Nếu có ID trong danh sách, hãy thêm (ID:x). Không tạo dữ liệu bịa đặt.
+
+RESPONSE:
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Dựa trên thông tin cung cấp, không tìm thấy sản phẩm nào phù hợp với yêu cầu \"đang có mặt tại cửa hàng\". Do đó, tôi không thể đưa ra các gợi ý sản phẩm cụ thể."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 86,
+    "candidatesTokenCount": 44,
+    "totalTokenCount": 1792,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 86
+      }
+    ],
+    "thoughtsTokenCount": 1662
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "yMkAae2wOqfX1e8PjZu9mAI"
+}
+
+
+[2025-10-28 14:55:58]
+PROMPT:
+Người dùng nhập: "tìm giày chạy bộ size 42"
+
+Nhiệm vụ của bạn:
+1️⃣ Phân tích ý định tìm kiếm để xác định các loại sản phẩm chính (ví dụ: giày, áo, quần, phụ kiện...).
+2️⃣ Trích xuất các từ khóa sản phẩm phù hợp với cơ sở dữ liệu.
+3️⃣ Dựa vào danh sách sản phẩm hiện có bên dưới để chọn ra các sản phẩm liên quan nhất.
+4️⃣ Nếu không có sản phẩm trùng, hãy tìm các từ khóa tương tự (ví dụ: 'outfit đi chơi' → giày sneaker, áo thun, quần short).
+
+Cơ sở dữ liệu sản phẩm hiện có:
+Không tìm thấy sản phẩm nào phù hợp.
+
+Hãy trả về tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 lý do ngắn tại sao phù hợp. Nếu có ID trong danh sách, thêm (ID:x). Nếu không có sản phẩm khớp, hãy đề xuất danh mục tương ứng có thể tìm trong cửa hàng.
+Chỉ sử dụng các sản phẩm hoặc danh mục có thật, không bịa đặt.
+
+RESPONSE:
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Vì không tìm thấy sản phẩm nào phù hợp trong cơ sở dữ liệu hiện có, chúng tôi xin gợi ý các danh mục liên quan để bạn tham khảo:\n\n1.  **Danh mục Giày chạy bộ**: Phù hợp nhất với nhu cầu tìm kiếm giày chạy bộ của bạn.\n2.  **Danh mục Giày thể thao**: Có thể bao gồm nhiều loại giày đa năng, trong đó có giày chạy bộ.\n3.  **Danh mục Giày (chung)**: Bạn có thể xem tất cả các loại giày hiện có trong cửa hàng.\n4.  **Danh mục Phụ kiện chạy bộ**: Có thể có các sản phẩm hỗ trợ cho việc chạy như vớ, túi đựng đồ.\n5.  **Liên hệ để được tư vấn**: Đội ngũ hỗ trợ sẽ giúp bạn tìm sản phẩm phù hợp hoặc thông báo khi có hàng mới."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 238,
+    "candidatesTokenCount": 181,
+    "totalTokenCount": 1278,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 238
+      }
+    ],
+    "thoughtsTokenCount": 859
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "b8sAadPMD9Oi1e8PlbfTEQ"
+}
+
+
+[2025-10-28 14:56:41]
+PROMPT:
+Người dùng nhập: "outfit đi học"
+
+Nhiệm vụ của bạn:
+1️⃣ Phân tích ý định tìm kiếm để xác định các loại sản phẩm chính (ví dụ: giày, áo, quần, phụ kiện...).
+2️⃣ Trích xuất các từ khóa sản phẩm phù hợp với cơ sở dữ liệu.
+3️⃣ Dựa vào danh sách sản phẩm hiện có bên dưới để chọn ra các sản phẩm liên quan nhất.
+4️⃣ Nếu không có sản phẩm trùng, hãy tìm các từ khóa tương tự (ví dụ: 'outfit đi chơi' → giày sneaker, áo thun, quần short).
+
+Cơ sở dữ liệu sản phẩm hiện có:
+Không tìm thấy sản phẩm nào phù hợp.
+
+Hãy trả về tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 lý do ngắn tại sao phù hợp. Nếu có ID trong danh sách, thêm (ID:x). Nếu không có sản phẩm khớp, hãy đề xuất danh mục tương ứng có thể tìm trong cửa hàng.
+Chỉ sử dụng các sản phẩm hoặc danh mục có thật, không bịa đặt.
+
+RESPONSE:
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Dựa trên ý định tìm kiếm \"outfit đi học\" và việc không có sản phẩm cụ thể trong cơ sở dữ liệu, dưới đây là các danh mục sản phẩm phù hợp có thể tìm trong cửa hàng:\n\n1.  **Danh mục: Áo Phông/Thun cơ bản**\n    *   Lý do: Thoải mái, năng động, dễ dàng hoạt động cả ngày dài ở trường.\n2.  **Danh mục: Quần Jean/Kaki**\n    *   Lý do: Bền bỉ, dễ phối đồ và phù hợp cho nhiều hoạt động học tập.\n3.  **Danh mục: Giày Thể Thao**\n    *   Lý do: Êm ái, hỗ trợ di chuyển nhiều và mang lại phong cách trẻ trung.\n4.  **Danh mục: Balo/Túi Đeo Chéo**\n    *   Lý do: Tiện lợi để đựng sách vở và đồ dùng cá nhân cần thiết.\n5.  **Danh mục: Áo Sơ Mi (Dạng cơ bản, không quá kiểu cách)**\n    *   Lý do: Mang lại vẻ ngoài lịch sự, gọn gàng, phù hợp môi trường học đường."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 234,
+    "candidatesTokenCount": 261,
+    "totalTokenCount": 1581,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 234
+      }
+    ],
+    "thoughtsTokenCount": 1086
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "mssAabKmB7uU1e8PuKLPGA"
+}
+
+
+[2025-10-28 14:57:37]
+PROMPT:
+Người dùng nhập: "outfit đi chơi"
+
+Nhiệm vụ của bạn:
+1️⃣ Phân tích ý định tìm kiếm để xác định các loại sản phẩm chính (ví dụ: giày, áo, quần, phụ kiện...).
+2️⃣ Trích xuất các từ khóa sản phẩm phù hợp với cơ sở dữ liệu.
+3️⃣ Dựa vào danh sách sản phẩm hiện có bên dưới để chọn ra các sản phẩm liên quan nhất.
+4️⃣ Nếu không có sản phẩm trùng, hãy tìm các từ khóa tương tự (ví dụ: 'outfit đi chơi' → giày sneaker, áo thun, quần short).
+
+Cơ sở dữ liệu sản phẩm hiện có:
+Không tìm thấy sản phẩm nào phù hợp.
+
+Hãy trả về tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 lý do ngắn tại sao phù hợp. Nếu có ID trong danh sách, thêm (ID:x). Nếu không có sản phẩm khớp, hãy đề xuất danh mục tương ứng có thể tìm trong cửa hàng.
+Chỉ sử dụng các sản phẩm hoặc danh mục có thật, không bịa đặt.
+
+RESPONSE:
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Dựa trên ý định tìm kiếm \"outfit đi chơi\", chúng tôi hiểu bạn đang tìm kiếm các sản phẩm để tạo nên một bộ trang phục thoải mái, phong cách và phù hợp cho các buổi gặp gỡ, dạo phố hoặc đi chơi.\n\nVì không tìm thấy sản phẩm cụ thể trong cơ sở dữ liệu hiện có, chúng tôi đề xuất các danh mục sản phẩm bạn có thể tham khảo để hoàn thiện \"outfit đi chơi\" của mình:\n\n1.  **Áo thun hoặc Áo kiểu:** Phù hợp cho sự thoải mái, năng động nhưng vẫn thời trang khi đi chơi.\n2.  **Quần jeans hoặc Chân váy:** Các lựa chọn phổ biến, dễ phối đồ và tạo phong cách trẻ trung, cá tính.\n3.  **Giày sneaker hoặc Sandal:** Mang lại sự thoải mái tối đa cho đôi chân, dễ di chuyển và hoàn thiện phong cách năng động.\n4.  **Túi đeo chéo hoặc Túi tote nhỏ:** Tiện lợi để mang theo vật dụng cá nhân và là phụ kiện tạo điểm nhấn cho bộ trang phục.\n5.  **Phụ kiện (mũ, kính râm, trang sức):** Giúp bạn tạo phong cách riêng và hoàn thiện vẻ ngoài của mình."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 234,
+    "candidatesTokenCount": 267,
+    "totalTokenCount": 1355,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 234
+      }
+    ],
+    "thoughtsTokenCount": 854
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "0ssAabQP977V7w-w_OP4Dw"
+}
+
+
