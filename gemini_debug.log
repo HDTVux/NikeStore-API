@@ -817,3 +817,59 @@ RESPONSE:
 }
 
 
+[2025-10-30 18:54:04]
+PROMPT:
+Người dùng nhập: "nike"
+
+Nhiệm vụ của bạn:
+1️⃣ Phân tích ý định tìm kiếm để xác định các loại sản phẩm chính (ví dụ: giày, áo, quần, phụ kiện...).
+2️⃣ Trích xuất các từ khóa sản phẩm phù hợp với cơ sở dữ liệu.
+3️⃣ Dựa vào danh sách sản phẩm hiện có bên dưới để chọn ra các sản phẩm liên quan nhất.
+4️⃣ Nếu không có sản phẩm trùng, hãy tìm các từ khóa tương tự (ví dụ: 'outfit đi chơi' → giày sneaker, áo thun, quần short).
+
+Cơ sở dữ liệu sản phẩm hiện có:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy trả về tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 lý do ngắn tại sao phù hợp. Nếu có ID trong danh sách, thêm (ID:x). Nếu không có sản phẩm khớp, hãy đề xuất danh mục tương ứng có thể tìm trong cửa hàng.
+Chỉ sử dụng các sản phẩm hoặc danh mục có thật, không bịa đặt.
+
+RESPONSE:
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Dựa trên tìm kiếm \"nike\" và cơ sở dữ liệu sản phẩm hiện có, đây là các gợi ý liên quan nhất:\n\n1.  **Nike Air Max 270 (ID:1)**: Một trong những đôi Air Max với đệm khí lớn đặc trưng của Nike.\n2.  **Nike Air Force 1 '07 (ID:2)**: Biểu tượng phong cách cổ điển từ năm 1982.\n3.  **Nike Dri-FIT Legend Tee (ID:4)**: Áo thun với công nghệ Dri-FIT thấm hút mồ hôi, phù hợp cho tập luyện và hàng ngày.\n4.  **Nike Pegasus 41 (ID:5)**: Giày chạy bộ hàng ngày với độ phản hồi tốt, rất được ưa chuộng.\n5.  **Nike Sportswear Heritage Backpack (ID:8)**: Ba lô tiện lợi với nhiều ngăn, phù hợp cho mọi hoạt động hàng ngày."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 429,
+    "candidatesTokenCount": 205,
+    "totalTokenCount": 1655,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 429
+      }
+    ],
+    "thoughtsTokenCount": 1021
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "PKYDaaS2KY2nvr0PjcWN2Q8"
+}
+
+

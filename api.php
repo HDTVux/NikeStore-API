@@ -1533,7 +1533,196 @@ if ($action === 'get_promotions') {
     exit;
 }
 
+// ================== CHAT FUNCTIONS ==================
+// 💬 Chat giữa Customer và Admin
+// Bảng: chats(id, user_id, admin_id, status, created_at, updated_at)
+// Bảng: messages(id, chat_id, sender_id, is_admin, message, created_at)
 
+// ======================================================
+// 🟢 1. Tạo cuộc trò chuyện mới (user bắt đầu chat)
+// ======================================================
+if ($action === 'create_chat') {
+    $user_id = isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0;
+    if ($user_id <= 0) {
+        echo json_encode(["success" => false, "message" => "Invalid user_id"]);
+        exit;
+    }
+
+    // Kiểm tra xem user đã có chat đang mở chưa
+    $check = $conn->prepare("SELECT id FROM chats WHERE user_id = ? AND status = 'open' LIMIT 1");
+    $check->bind_param("i", $user_id);
+    $check->execute();
+    $existing = $check->get_result()->fetch_assoc();
+
+    if ($existing) {
+        echo json_encode([
+            "success" => true,
+            "chat_id" => (int)$existing['id'],
+            "message" => "Chat already open"
+        ]);
+        exit;
+    }
+
+    // Tạo chat mới
+    $stmt = $conn->prepare("INSERT INTO chats (user_id, status) VALUES (?, 'open')");
+    $stmt->bind_param("i", $user_id);
+
+    if ($stmt->execute()) {
+        echo json_encode([
+            "success" => true,
+            "chat_id" => $conn->insert_id,
+            "message" => "Chat created"
+        ]);
+    } else {
+        echo json_encode(["success" => false, "message" => "Failed to create chat"]);
+    }
+    exit;
+}
+
+
+// ======================================================
+// 🟢 2. Gửi tin nhắn (dành cho cả user và admin)
+// ======================================================
+if ($action === 'send_message') {
+    $chat_id   = isset($_POST['chat_id']) ? (int)$_POST['chat_id'] : 0;
+    $sender_id = isset($_POST['sender_id']) ? (int)$_POST['sender_id'] : 0;
+    $message   = isset($_POST['message']) ? trim($_POST['message']) : '';
+
+    if ($chat_id <= 0 || $sender_id <= 0 || $message === '') {
+        echo json_encode(["success" => false, "message" => "Missing required fields"]);
+        exit;
+    }
+
+    // Xác định role người gửi để phân biệt admin / user
+    $stmt_role = $conn->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+    $stmt_role->bind_param("i", $sender_id);
+    $stmt_role->execute();
+    $role_row = $stmt_role->get_result()->fetch_assoc();
+
+    $is_admin = 0;
+    if ($role_row && $role_row['role'] === 'admin') {
+        $is_admin = 1;
+    }
+
+    // Gửi tin nhắn
+    $stmt = $conn->prepare("INSERT INTO messages (chat_id, sender_id, is_admin, message) VALUES (?, ?, ?, ?)");
+    $stmt->bind_param("iiis", $chat_id, $sender_id, $is_admin, $message);
+
+    if ($stmt->execute()) {
+        // Cập nhật thời gian hoạt động chat
+        $upd = $conn->prepare("UPDATE chats SET updated_at = NOW(), status = 'open' WHERE id = ?");
+        $upd->bind_param("i", $chat_id);
+        $upd->execute();
+
+        echo json_encode([
+            "success" => true,
+            "message_id" => $conn->insert_id,
+            "is_admin" => (bool)$is_admin
+        ]);
+    } else {
+        echo json_encode(["success" => false, "message" => "Failed to send message"]);
+    }
+    exit;
+}
+
+
+// ======================================================
+// 🟢 3. Lấy toàn bộ tin nhắn trong một cuộc trò chuyện
+// ======================================================
+if ($action === 'get_messages') {
+    $chat_id = isset($_GET['chat_id']) ? (int)$_GET['chat_id'] : 0;
+    if ($chat_id <= 0) {
+        echo json_encode(["success" => false, "message" => "Invalid chat_id"]);
+        exit;
+    }
+
+    $stmt = $conn->prepare("
+        SELECT m.id, m.chat_id, m.sender_id, m.is_admin, m.message, m.created_at, u.username, u.role
+        FROM messages m
+        JOIN users u ON m.sender_id = u.id
+        WHERE m.chat_id = ?
+        ORDER BY m.created_at ASC
+    ");
+    $stmt->bind_param("i", $chat_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $messages = [];
+    while ($row = $result->fetch_assoc()) {
+        $messages[] = [
+            "id" => (int)$row['id'],
+            "chat_id" => (int)$row['chat_id'],
+            "sender_id" => (int)$row['sender_id'],
+            "sender_name" => $row['username'],
+            "is_admin" => (bool)$row['is_admin'],
+            "message" => $row['message'],
+            "created_at" => $row['created_at']
+        ];
+    }
+
+    echo json_encode(["success" => true, "messages" => $messages]);
+    exit;
+}
+
+
+// ======================================================
+// 🟢 4. Lấy danh sách các cuộc chat của user (lịch sử chat)
+// ======================================================
+if ($action === 'get_user_chats') {
+    $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
+    if ($user_id <= 0) {
+        echo json_encode(["success" => false, "message" => "Invalid user_id"]);
+        exit;
+    }
+
+    $stmt = $conn->prepare("
+        SELECT c.id, c.status, c.created_at, c.updated_at,
+               (SELECT message FROM messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message,
+               (SELECT MAX(created_at) FROM messages WHERE chat_id = c.id) AS last_message_time
+        FROM chats c
+        WHERE c.user_id = ?
+        ORDER BY c.updated_at DESC
+    ");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $chats = [];
+    while ($row = $result->fetch_assoc()) {
+        $chats[] = [
+            "id" => (int)$row['id'],
+            "status" => $row['status'],
+            "last_message" => $row['last_message'],
+            "last_message_time" => $row['last_message_time'],
+            "created_at" => $row['created_at']
+        ];
+    }
+
+    echo json_encode(["success" => true, "chats" => $chats]);
+    exit;
+}
+
+
+// ======================================================
+// 🟢 5. Đóng chat (user hoặc admin)
+// ======================================================
+if ($action === 'close_chat') {
+    $chat_id = isset($_POST['chat_id']) ? (int)$_POST['chat_id'] : 0;
+    if ($chat_id <= 0) {
+        echo json_encode(["success" => false, "message" => "Invalid chat_id"]);
+        exit;
+    }
+
+    $stmt = $conn->prepare("UPDATE chats SET status = 'closed', updated_at = NOW() WHERE id = ?");
+    $stmt->bind_param("i", $chat_id);
+
+    if ($stmt->execute()) {
+        echo json_encode(["success" => true, "message" => "Chat closed"]);
+    } else {
+        echo json_encode(["success" => false, "message" => "Failed to close chat"]);
+    }
+    exit;
+}
 
 
 // ============ Mặc định: action không hợp lệ ============
