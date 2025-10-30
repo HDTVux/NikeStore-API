@@ -925,14 +925,17 @@ if ($action === 'create_order') {
 
 
 
-// ================== CREATE VNPay PAYMENT ==================
+// ================== CREATE VNPay PAYMENT (KHÔNG TRỪ KHO) ==================
 if ($action === 'create_vnpay_payment') {
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
 
     $raw = file_get_contents("php://input");
     $json = $raw ? json_decode($raw, true) : null;
-    if (!$json) { echo json_encode(["success" => false, "message" => "Invalid JSON"]); exit; }
+    if (!$json) { 
+        echo json_encode(["success" => false, "message" => "Invalid JSON"]); 
+        exit; 
+    }
 
     $user_id = isset($json['user_id']) ? (int)$json['user_id'] : 0;
     $items   = $json['items'] ?? [];
@@ -940,7 +943,8 @@ if ($action === 'create_vnpay_payment') {
     $phone   = isset($json['phone']) ? trim($json['phone']) : null;
 
     if ($user_id <= 0 || !is_array($items) || empty($items) || $address === '') {
-        echo json_encode(["success" => false, "message" => "Missing params"]); exit;
+        echo json_encode(["success" => false, "message" => "Missing params"]); 
+        exit;
     }
 
     $conn->begin_transaction();
@@ -948,86 +952,90 @@ if ($action === 'create_vnpay_payment') {
         $subtotal = 0.0;
         $calculated_items = [];
 
-foreach ($items as $it) {
-    $pid = isset($it['product_id']) ? (int)$it['product_id'] : 0;
-    $vid = isset($it['variant_id']) && $it['variant_id'] !== null ? (int)$it['variant_id'] : null;
-    $qty = isset($it['quantity']) ? max(0,(int)$it['quantity']) : 0;
-    if ($pid <= 0 || $qty <= 0) throw new Exception("Invalid item");
+        foreach ($items as $it) {
+            $pid = isset($it['product_id']) ? (int)$it['product_id'] : 0;
+            $vid = isset($it['variant_id']) && $it['variant_id'] !== null ? (int)$it['variant_id'] : null;
+            $qty = isset($it['quantity']) ? max(0,(int)$it['quantity']) : 0;
+            if ($pid <= 0 || $qty <= 0) throw new Exception("Invalid item");
 
-    $unit_price = 0.0;
-    $actual_product_id = $pid;
+            $unit_price = 0.0;
+            $actual_product_id = $pid;
 
-    if ($vid) {
-        $s = $conn->prepare("SELECT pv.id as vid, IFNULL(pv.price, p.price) as unit_price, p.id as product_id 
-                             FROM product_variants pv 
-                             JOIN products p ON pv.product_id = p.id 
-                             WHERE pv.id = ? LIMIT 1");
-        $s->bind_param("i", $vid);
-        $s->execute();
-        $row = $s->get_result()->fetch_assoc();
-        if (!$row) throw new Exception("Variant not found");
-        $unit_price = (float)$row['unit_price'];
-        $actual_product_id = (int)$row['product_id'];
-    } else {
-        $s = $conn->prepare("SELECT price FROM products WHERE id = ? LIMIT 1");
-        $s->bind_param("i", $pid);
-        $s->execute();
-        $row = $s->get_result()->fetch_assoc();
-        if (!$row) throw new Exception("Product not found");
-        $unit_price = (float)$row['price'];
-    }
+            // Lấy giá từ DB
+            if ($vid) {
+                $s = $conn->prepare("SELECT pv.id as vid, IFNULL(pv.price, p.price) as unit_price, p.id as product_id 
+                                     FROM product_variants pv 
+                                     JOIN products p ON pv.product_id = p.id 
+                                     WHERE pv.id = ? LIMIT 1");
+                $s->bind_param("i", $vid);
+                $s->execute();
+                $row = $s->get_result()->fetch_assoc();
+                if (!$row) throw new Exception("Variant not found");
+                $unit_price = (float)$row['unit_price'];
+                $actual_product_id = (int)$row['product_id'];
+            } else {
+                $s = $conn->prepare("SELECT price FROM products WHERE id = ? LIMIT 1");
+                $s->bind_param("i", $pid);
+                $s->execute();
+                $row = $s->get_result()->fetch_assoc();
+                if (!$row) throw new Exception("Product not found");
+                $unit_price = (float)$row['price'];
+            }
 
-    // ✅ Áp dụng giảm giá nếu có
-    $now = date('Y-m-d H:i:s');
-    $promo_sql = "SELECT discount_percent 
-                  FROM promotions 
-                  WHERE product_id = ? AND is_active = 1 
-                    AND starts_at <= ? AND ends_at >= ? 
-                  ORDER BY id DESC LIMIT 1";
-    $promo_stmt = $conn->prepare($promo_sql);
-    $promo_stmt->bind_param("iss", $actual_product_id, $now, $now);
-    $promo_stmt->execute();
-    $promo = $promo_stmt->get_result()->fetch_assoc();
-    if ($promo && $promo['discount_percent'] > 0) {
-        $unit_price = $unit_price * (1 - ((float)$promo['discount_percent'] / 100.0));
-    }
+            // ✅ Áp dụng giảm giá nếu có
+            $now = date('Y-m-d H:i:s');
+            $promo_sql = "SELECT discount_percent 
+                          FROM promotions 
+                          WHERE product_id = ? AND is_active = 1 
+                            AND starts_at <= ? AND ends_at >= ? 
+                          ORDER BY id DESC LIMIT 1";
+            $promo_stmt = $conn->prepare($promo_sql);
+            $promo_stmt->bind_param("iss", $actual_product_id, $now, $now);
+            $promo_stmt->execute();
+            $promo = $promo_stmt->get_result()->fetch_assoc();
+            if ($promo && $promo['discount_percent'] > 0) {
+                $unit_price = $unit_price * (1 - ((float)$promo['discount_percent'] / 100.0));
+            }
 
-    // ✅ Giảm kho
-    if ($vid) {
-        $u = $conn->prepare("UPDATE product_variants SET stock = stock - ? WHERE id = ? AND stock >= ?");
-        $u->bind_param("iii", $qty, $vid, $qty);
-        $u->execute();
-        if ($u->affected_rows === 0) throw new Exception("Out of stock for variant " . $vid);
+            // ⚠️ KHÔNG TRỪ KHO Ở ĐÂY - Chỉ kiểm tra còn hàng
+            if ($vid) {
+                $check = $conn->prepare("SELECT stock FROM product_variants WHERE id = ?");
+                $check->bind_param("i", $vid);
+                $check->execute();
+                $stock_row = $check->get_result()->fetch_assoc();
+                if (!$stock_row || $stock_row['stock'] < $qty) {
+                    throw new Exception("Insufficient stock for variant id: " . $vid);
+                }
+            } else {
+                $check = $conn->prepare("SELECT stock FROM products WHERE id = ?");
+                $check->bind_param("i", $pid);
+                $check->execute();
+                $stock_row = $check->get_result()->fetch_assoc();
+                if (!$stock_row || $stock_row['stock'] < $qty) {
+                    throw new Exception("Insufficient stock for product id: " . $pid);
+                }
+            }
 
-        $sync = $conn->prepare("UPDATE products SET stock = (SELECT IFNULL(SUM(stock),0) FROM product_variants WHERE product_id = ?) WHERE id = ?");
-        $sync->bind_param("ii", $actual_product_id, $actual_product_id);
-        $sync->execute();
-    } else {
-        $u = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?");
-        $u->bind_param("iii", $qty, $pid, $qty);
-        $u->execute();
-        if ($u->affected_rows === 0) throw new Exception("Out of stock or concurrent order for product " . $pid);
-    }
-
-    $subtotal += $unit_price * $qty;
-    $calculated_items[] = [
-        'product_id' => $pid,
-        'variant_id' => $vid,
-        'quantity'   => $qty,
-        'unit_price' => $unit_price
-    ];
-}
+            $subtotal += $unit_price * $qty;
+            $calculated_items[] = [
+                'product_id' => $pid,
+                'variant_id' => $vid,
+                'quantity'   => $qty,
+                'unit_price' => $unit_price
+            ];
+        }
 
         $shipping = ($subtotal > 100) ? 0.0 : 5.0;
         $total = $subtotal + $shipping;
 
+        // Tạo order với status = pending_payment
         $ins = $conn->prepare("INSERT INTO orders (user_id, status, total_price, shipping_address, phone, payment_method, shipping_fee, subtotal) VALUES (?, 'pending_payment', ?, ?, ?, 'vnpay', ?, ?)");
         if (!$ins) throw new Exception("Prepare failed (orders insert): " . $conn->error);
-        // types: i (user_id), d (total), s (address), s (phone), d (shipping), d (subtotal)
         $ins->bind_param("idssdd", $user_id, $total, $address, $phone, $shipping, $subtotal);
         if (!$ins->execute()) throw new Exception("Cannot create order");
         $order_id = $conn->insert_id;
 
+        // Lưu order_items
         foreach ($calculated_items as $ci) {
             if ($ci['variant_id'] === null) {
                 $stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, variant_id, quantity, price) VALUES (?, ?, NULL, ?, ?)");
@@ -1039,12 +1047,14 @@ foreach ($items as $it) {
             if (!$stmt->execute()) throw new Exception("Cannot add order item: " . $stmt->error);
         }
 
+        // Tạo payment record
         $pstmt = $conn->prepare("INSERT INTO payments (order_id, payment_method, amount, status, created_at) VALUES (?, 'vnpay', ?, 'pending', NOW())");
         $pstmt->bind_param("id", $order_id, $total);
         if (!$pstmt->execute()) throw new Exception("Cannot create payment record: " . $pstmt->error);
 
         $conn->commit();
 
+        // Tạo VNPay payment URL
         require_once __DIR__ . '/vnpay_php/config.php';
         $vnp_TmnCode    = VNPAY_TMN_CODE;
         $vnp_HashSecret = VNPAY_HASH_SECRET;

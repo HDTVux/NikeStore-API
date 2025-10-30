@@ -1,8 +1,7 @@
 <?php
-// vnpay_return.php - robust include + verify + update DB + clear cart on success
+// vnpay_return.php - WITH STOCK DEDUCTION
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-// --- Try load config and DB connection from several likely locations ---
 $loaded = false;
 $base = __DIR__;
 
@@ -46,10 +45,8 @@ if (!isset($conn) || !$connected) {
     exit;
 }
 
-// --- Log incoming GET params for debugging ---
 file_put_contents($base . '/vnpay_debug.log', date('c') . " RETURN CALLED: " . json_encode($_GET) . PHP_EOL, FILE_APPEND);
 
-// Filter vnp_ params
 $inputData = [];
 foreach ($_GET as $k => $v) {
     if (strpos($k, 'vnp_') === 0) $inputData[$k] = (string)$v;
@@ -58,7 +55,6 @@ foreach ($_GET as $k => $v) {
 $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
 unset($inputData['vnp_SecureHash']);
 
-// Build hash
 ksort($inputData);
 $hashData = '';
 $i = 0;
@@ -69,7 +65,6 @@ foreach ($inputData as $key => $value) {
 }
 $ourHash = hash_hmac('sha512', $hashData, defined('VNPAY_HASH_SECRET') ? VNPAY_HASH_SECRET : '');
 
-// Deep link redirect
 $appScheme = 'app://vnpay-return';
 $appQuery = http_build_query($_GET);
 $appUrl = $appScheme . ($appQuery ? ('?' . $appQuery) : '');
@@ -87,14 +82,12 @@ $vnp_Amount = ((float)$vnp_Amount_raw / 100.0) / $USD_RATE;
 $vnp_ResponseCode = $inputData['vnp_ResponseCode'] ?? ($_GET['vnp_ResponseCode'] ?? null);
 $vnp_TransactionNo = $inputData['vnp_TransactionNo'] ?? ($_GET['vnp_TransactionNo'] ?? null);
 
-// Validate signature
 if ($ourHash !== $vnp_SecureHash) {
     header("Content-Type: text/html; charset=utf-8");
     echo "<html><body><script>window.location.replace(" . json_encode($appUrl) . ");</script></body></html>";
     exit;
 }
 
-// Check order
 $stmt = $conn->prepare("SELECT id, status, total_price, user_id FROM orders WHERE id = ? LIMIT 1");
 $stmt->bind_param("i", $orderId);
 $stmt->execute();
@@ -112,14 +105,52 @@ if (abs($orderTotal - $vnp_Amount) > 0.01) {
     exit;
 }
 
-// ========================= PROCESS RESULT =========================
+// ✅✅✅ XỬ LÝ KẾT QUẢ ✅✅✅
 if ($vnp_ResponseCode === '00') {
+    // THANH TOÁN THÀNH CÔNG
     $conn->begin_transaction();
     try {
+        // 1️⃣ Lấy danh sách items
+        $getItems = $conn->prepare("SELECT product_id, variant_id, quantity FROM order_items WHERE order_id = ?");
+        $getItems->bind_param("i", $orderId);
+        $getItems->execute();
+        $items = $getItems->get_result()->fetch_all(MYSQLI_ASSOC);
+
+        // 2️⃣ TRỪ KHO (chỉ nếu order chưa paid để tránh trừ 2 lần)
+        if ($order['status'] !== 'paid') {
+            foreach ($items as $it) {
+                $pid = (int)$it['product_id'];
+                $vid = $it['variant_id'] !== null ? (int)$it['variant_id'] : null;
+                $qty = (int)$it['quantity'];
+
+                if ($vid) {
+                    $u = $conn->prepare("UPDATE product_variants SET stock = stock - ? WHERE id = ? AND stock >= ?");
+                    $u->bind_param("iii", $qty, $vid, $qty);
+                    $u->execute();
+                    if ($u->affected_rows === 0) {
+                        throw new Exception("Out of stock for variant id: " . $vid);
+                    }
+
+                    $sync = $conn->prepare("UPDATE products SET stock = (SELECT IFNULL(SUM(stock),0) FROM product_variants WHERE product_id = ?) WHERE id = ?");
+                    $sync->bind_param("ii", $pid, $pid);
+                    $sync->execute();
+                } else {
+                    $u = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?");
+                    $u->bind_param("iii", $qty, $pid, $qty);
+                    $u->execute();
+                    if ($u->affected_rows === 0) {
+                        throw new Exception("Out of stock for product id: " . $pid);
+                    }
+                }
+            }
+        }
+
+        // 3️⃣ Update order status
         $u = $conn->prepare("UPDATE orders SET status='paid' WHERE id = ? AND status <> 'paid'");
         $u->bind_param("i", $orderId);
         $u->execute();
 
+        // 4️⃣ Update payment
         $upd = $conn->prepare("UPDATE payments SET status='success', transaction_id=?, amount=?, created_at=NOW() WHERE order_id=? AND payment_method='vnpay'");
         $upd->bind_param("sdi", $vnp_TransactionNo, $vnp_Amount, $orderId);
         $upd->execute();
@@ -130,7 +161,7 @@ if ($vnp_ResponseCode === '00') {
             $ins->execute();
         }
 
-        // Clear cart
+        // 5️⃣ Clear cart
         $userId = isset($order['user_id']) ? (int)$order['user_id'] : 0;
         if ($userId > 0) {
             $qc = $conn->prepare("SELECT id FROM cart WHERE user_id = ? LIMIT 1");
@@ -147,11 +178,10 @@ if ($vnp_ResponseCode === '00') {
 
         $conn->commit();
 
-        // ✅ SEND EMAIL SUCCESS
+        // 6️⃣ Send email success
         require_once __DIR__ . '/../../PHPMailer-master/src/Exception.php';
         require_once __DIR__ . '/../../PHPMailer-master/src/PHPMailer.php';
         require_once __DIR__ . '/../../PHPMailer-master/src/SMTP.php';
-
 
         $qUser = $conn->prepare("SELECT email, username FROM users WHERE id = ?");
         $qUser->bind_param("i", $userId);
@@ -184,7 +214,9 @@ if ($vnp_ResponseCode === '00') {
         $conn->rollback();
         file_put_contents($base . '/vnpay_debug.log', date('c') . " DB ERROR: " . $e->getMessage() . PHP_EOL, FILE_APPEND);
     }
+
 } else {
+    // THANH TOÁN THẤT BẠI -> Cancel order (không cần hoàn kho vì chưa trừ)
     $conn->begin_transaction();
     try {
         $up = $conn->prepare("UPDATE orders SET status='cancelled' WHERE id=?");
@@ -195,30 +227,12 @@ if ($vnp_ResponseCode === '00') {
         $updP->bind_param("sdi", $vnp_TransactionNo, $vnp_Amount, $orderId);
         $updP->execute();
 
-        // Restock
-        $getItems = $conn->prepare("SELECT product_id, variant_id, quantity FROM order_items WHERE order_id=?");
-        $getItems->bind_param("i", $orderId);
-        $getItems->execute();
-        $items = $getItems->get_result()->fetch_all(MYSQLI_ASSOC);
-        foreach ($items as $it) {
-            $qty = (int)$it['quantity'];
-            if ($it['variant_id'] !== null && $it['variant_id'] !== '') {
-                $s = $conn->prepare("UPDATE product_variants SET stock=stock+? WHERE id=?");
-                $s->bind_param("ii", $qty, $it['variant_id']);
-            } else {
-                $s = $conn->prepare("UPDATE products SET stock=stock+? WHERE id=?");
-                $s->bind_param("ii", $qty, $it['product_id']);
-            }
-            $s->execute();
-        }
-
         $conn->commit();
 
-        // ❌ SEND EMAIL FAILED
+        // Send email failed
         require_once __DIR__ . '/../../PHPMailer-master/src/Exception.php';
         require_once __DIR__ . '/../../PHPMailer-master/src/PHPMailer.php';
         require_once __DIR__ . '/../../PHPMailer-master/src/SMTP.php';
-
 
         $qUser = $conn->prepare("SELECT email, username FROM users WHERE id=?");
         $qUser->bind_param("i", $order['user_id']);
@@ -240,7 +254,7 @@ if ($vnp_ResponseCode === '00') {
                 $mail->setFrom('group4.sportstore@gmail.com', 'Nike Store');
                 $mail->addAddress($uinfo['email'], $uinfo['username']);
                 $mail->Subject = "Nike Store - Thanh toán thất bại đơn hàng #$orderId";
-                $mail->Body = "Xin chào {$uinfo['username']},\n\nThanh toán VNPay cho đơn hàng #$orderId không thành công. Đơn hàng đã được hủy và hàng hóa đã hoàn về kho.\n\nNếu bạn cần hỗ trợ, vui lòng liên hệ bộ phận CSKH của chúng tôi.";
+                $mail->Body = "Xin chào {$uinfo['username']},\n\nThanh toán VNPay cho đơn hàng #$orderId không thành công. Đơn hàng đã được hủy.\n\nNếu bạn cần hỗ trợ, vui lòng liên hệ bộ phận CSKH của chúng tôi.";
                 $mail->send();
             } catch (\Exception $e) {
                 file_put_contents($base . '/vnpay_debug.log', date('c') . " EMAIL SEND FAIL FAIL: " . $e->getMessage() . PHP_EOL, FILE_APPEND);
@@ -277,5 +291,4 @@ $appEscaped = htmlspecialchars($appUrl, ENT_QUOTES, 'UTF-8');
   </script>
 </body>
 </html>
-<?php
-exit;
+<?php exit;

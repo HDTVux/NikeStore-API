@@ -761,3 +761,59 @@ RESPONSE:
 }
 
 
+[2025-10-30 04:19:17]
+PROMPT:
+Người dùng nhập: "nike"
+
+Nhiệm vụ của bạn:
+1️⃣ Phân tích ý định tìm kiếm để xác định các loại sản phẩm chính (ví dụ: giày, áo, quần, phụ kiện...).
+2️⃣ Trích xuất các từ khóa sản phẩm phù hợp với cơ sở dữ liệu.
+3️⃣ Dựa vào danh sách sản phẩm hiện có bên dưới để chọn ra các sản phẩm liên quan nhất.
+4️⃣ Nếu không có sản phẩm trùng, hãy tìm các từ khóa tương tự (ví dụ: 'outfit đi chơi' → giày sneaker, áo thun, quần short).
+
+Cơ sở dữ liệu sản phẩm hiện có:
+ID:1 | Nike Air Max 270 (Men) - Nike’s first lifestyle Air Max with big Air unit.
+ID:2 | Nike Air Force 1 '07 (Men) - Classic look since 1982 with Nike Air cushioning.
+ID:4 | Nike Dri-FIT Legend Tee - Soft jersey fabric with sweat-wicking Dri-FIT technology.
+ID:5 | Nike Pegasus 41 (Men) - Everyday responsive road-running shoe — Pegasus 41.
+ID:6 | Nike ZoomX Vaporfly Next (Men) - Racing shoe with ZoomX foam — Vaporfly Next.
+ID:7 | Nike React Infinity Run (Men) - Cushioned daily-run shoe with React foam.
+ID:8 | Nike Sportswear Heritage Backpack (23L) - Everyday backpack with padded sleeve and pockets.
+ID:9 | Nike Club Unstructured Swoosh Cap - Classic 6-panel cap with Swoosh, adjustable strap.
+
+Hãy trả về tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 lý do ngắn tại sao phù hợp. Nếu có ID trong danh sách, thêm (ID:x). Nếu không có sản phẩm khớp, hãy đề xuất danh mục tương ứng có thể tìm trong cửa hàng.
+Chỉ sử dụng các sản phẩm hoặc danh mục có thật, không bịa đặt.
+
+RESPONSE:
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Dưới đây là một số sản phẩm Nike bạn có thể quan tâm:\n\n*   **Nike Air Max 270 (Men)** (ID:1) - Một trong những dòng giày lifestyle nổi bật của Nike.\n*   **Nike Air Force 1 '07 (Men)** (ID:2) - Mẫu giày Nike kinh điển với phong cách vượt thời gian.\n*   **Nike Dri-FIT Legend Tee** (ID:4) - Áo thun tập luyện thấm hút mồ hôi hiệu quả của Nike.\n*   **Nike Pegasus 41 (Men)** (ID:5) - Giày chạy bộ hàng ngày phổ biến và phản hồi tốt của Nike.\n*   **Nike Sportswear Heritage Backpack (23L)** (ID:8) - Ba lô đa năng tiện lợi cho mọi hoạt động từ Nike."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 429,
+    "candidatesTokenCount": 180,
+    "totalTokenCount": 1311,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 429
+      }
+    ],
+    "thoughtsTokenCount": 702
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "NtkCaZGXOveR0-kP9pTOoAQ"
+}
+
+
