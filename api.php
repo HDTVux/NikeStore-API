@@ -343,7 +343,7 @@ if ($action === 'get_products_by_category') {
     $page_size = isset($_GET['page_size']) ? (int)$_GET['page_size'] : 20;
     $page_size = min(max(1, $page_size), 50);
     $offset = ($page - 1) * $page_size;
-    $now = date('Y-m-d H:i:s'); // NEW: Lấy thời gian hiện tại để so sánh khuyến mãi
+    $now = date('Y-m-d H:i:s');
 
     $sql = "
       SELECT 
@@ -354,34 +354,44 @@ if ($action === 'get_products_by_category') {
         COALESCE(promo.discount_percent, 0) AS discount_percent,
         COALESCE(ROUND(p.price * (1 - promo.discount_percent/100), 2), p.price) AS final_price
       FROM products p
-      LEFT JOIN promotions promo ON p.id = promo.product_id 
-          AND promo.is_active = 1 
-          AND promo.starts_at <= ? 
-          AND promo.ends_at >= ?
+      LEFT JOIN (
+          SELECT p1.product_id, p1.discount_percent
+          FROM promotions p1
+          INNER JOIN (
+              SELECT product_id, MAX(starts_at) AS latest_start
+              FROM promotions
+              WHERE is_active = 1
+                AND starts_at <= ?
+                AND ends_at >= ?
+              GROUP BY product_id
+          ) p2 ON p1.product_id = p2.product_id AND p1.starts_at = p2.latest_start
+      ) promo ON promo.product_id = p.id
       WHERE p.is_active = 1
     ";
     if ($category_id > 0) {
         $sql .= " AND p.category_id = ?";
     }
     $sql .= " ORDER BY p.created_at DESC LIMIT ? OFFSET ?";
+
     $stmt = $conn->prepare($sql);
     if ($category_id > 0) {
         $stmt->bind_param("ssiii", $now, $now, $category_id, $page_size, $offset);
     } else {
         $stmt->bind_param("ssii", $now, $now, $page_size, $offset);
     }
+
     $stmt->execute();
     $res = $stmt->get_result();
     $items = [];
     while ($r = $res->fetch_assoc()) {
         $r['id'] = (int)$r['id'];
         $r['price'] = (float)$r['price'];
-        $r['image_url'] = $r['image_url'] ? abs_url($r['image_url']) : '';
-        // NEW: Cast các trường discount
         $r['discount_percent'] = (float)$r['discount_percent'];
         $r['final_price'] = (float)$r['final_price'];
+        $r['image_url'] = $r['image_url'] ? abs_url($r['image_url']) : '';
         $items[] = $r;
     }
+
     echo json_encode(["success" => true, "data" => $items, "pagination" => ["page"=>$page, "page_size"=>$page_size]], JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -392,38 +402,54 @@ if ($action === 'get_product_details') {
     if ($product_id <= 0) {
         echo json_encode(["success"=>false,"message"=>"Missing product_id"]); exit;
     }
-    $now = date('Y-m-d H:i:s'); // NEW: Lấy thời gian hiện tại để so sánh khuyến mãi
 
-    // product with promotion details
+    $now = date('Y-m-d H:i:s');
+
+    // product with promotion, rating details
     $pstmt = $conn->prepare("
         SELECT 
-            p.id, 
-            p.name, 
-            p.description, 
-            p.price, 
-            p.stock, 
+            p.id,
+            p.name,
+            p.description,
+            p.price,
+            p.stock,
             p.size_type,
+            p.avg_rating,
+            p.rating_count,
             COALESCE(promo.discount_percent, 0) AS discount_percent,
             COALESCE(ROUND(p.price * (1 - promo.discount_percent/100), 2), p.price) AS final_price
         FROM products p
-        LEFT JOIN promotions promo ON p.id = promo.product_id
-            AND promo.is_active = 1
-            AND promo.starts_at <= ? 
-            AND promo.ends_at >= ?
-        WHERE p.id = ? AND p.is_active = 1 LIMIT 1
+        LEFT JOIN (
+            SELECT p1.product_id, p1.discount_percent
+            FROM promotions p1
+            INNER JOIN (
+                SELECT product_id, MAX(starts_at) AS latest_start
+                FROM promotions
+                WHERE is_active = 1
+                  AND starts_at <= ?
+                  AND ends_at >= ?
+                GROUP BY product_id
+            ) p2 ON p1.product_id = p2.product_id AND p1.starts_at = p2.latest_start
+        ) promo ON promo.product_id = p.id
+        WHERE p.id = ? AND p.is_active = 1
+        LIMIT 1
     ");
-    $pstmt->bind_param("ssi", $now, $now, $product_id); // NEW: Thay đổi bind_param
+    $pstmt->bind_param("ssi", $now, $now, $product_id);
     $pstmt->execute();
     $product = $pstmt->get_result()->fetch_assoc();
-    if (!$product) { echo json_encode(["success"=>false,"message"=>"Product not found"]); exit; }
 
-    // images: main first then others
+    if (!$product) {
+        echo json_encode(["success"=>false,"message"=>"Product not found"]);
+        exit;
+    }
+
+    // images
     $imgs = [];
     $ipstmt = $conn->prepare("
-       SELECT image_url, is_main
-       FROM product_images
-       WHERE product_id = ?
-       ORDER BY is_main DESC, id ASC
+        SELECT image_url, is_main
+        FROM product_images
+        WHERE product_id = ?
+        ORDER BY is_main DESC, id ASC
     ");
     $ipstmt->bind_param("i", $product_id);
     $ipstmt->execute();
@@ -432,9 +458,14 @@ if ($action === 'get_product_details') {
         $imgs[] = $row['image_url'] ? abs_url($row['image_url']) : '';
     }
 
-    // variants (sizes)
+    // variants
     $vars = [];
-    $vpstmt = $conn->prepare("SELECT id, size, stock, price FROM product_variants WHERE product_id = ? ORDER BY id ASC");
+    $vpstmt = $conn->prepare("
+        SELECT id, size, stock, price 
+        FROM product_variants 
+        WHERE product_id = ? 
+        ORDER BY id ASC
+    ");
     $vpstmt->bind_param("i", $product_id);
     $vpstmt->execute();
     $rv = $vpstmt->get_result();
@@ -443,18 +474,20 @@ if ($action === 'get_product_details') {
         $vars[] = $vv;
     }
 
-    // cast types for consistency
+    // cast types
     $product['id'] = (int)$product['id'];
     $product['price'] = (float)$product['price'];
-    // NEW: Cast các trường discount
     $product['discount_percent'] = (float)$product['discount_percent'];
     $product['final_price'] = (float)$product['final_price'];
+    $product['avg_rating'] = (float)$product['avg_rating'];
+    $product['rating_count'] = (int)$product['rating_count'];
     $product['images'] = $imgs;
     $product['variants'] = $vars;
 
     echo json_encode(["success"=>true,"product"=>$product], JSON_UNESCAPED_UNICODE);
     exit;
 }
+
 
 // GET PRODUCT REVIEWS
 if ($action === 'get_product_reviews') {
@@ -546,22 +579,30 @@ if ($action === 'get_cart') {
     if ($user_id <= 0) { echo json_encode(["success"=>false,"message"=>"Missing user_id"]); exit; }
     $now = date('Y-m-d H:i:s'); // NEW: Lấy thời gian hiện tại để so sánh khuyến mãi
 
-    $sql = "
+        $sql = "
       SELECT ci.id AS item_id, ci.quantity, ci.variant_id,
              p.id AS product_id, p.name AS product_name, p.price AS product_price,
              pv.size AS variant_size, pv.price AS variant_price,
              (SELECT image_url FROM product_images WHERE product_id=p.id AND is_main=1 LIMIT 1) AS image_url,
              COALESCE(promo.discount_percent, 0) AS discount_percent,
              COALESCE(ROUND(p.price * (1 - promo.discount_percent/100), 2), p.price) AS final_price_product_promotion,
-             COALESCE(ROUND(pv.price * (1 - promo.discount_percent/100), 2), pv.price, p.price) AS final_price_variant_promotion -- NEW: Calculate final price based on variant or product price, with promotion
+             COALESCE(ROUND(pv.price * (1 - promo.discount_percent/100), 2), pv.price, p.price) AS final_price_variant_promotion
       FROM cart c
       JOIN cart_items ci ON ci.cart_id = c.id
       JOIN products p ON p.id = ci.product_id
       LEFT JOIN product_variants pv ON pv.id = ci.variant_id
-      LEFT JOIN promotions promo ON p.id = promo.product_id 
-          AND promo.is_active = 1 
-          AND promo.starts_at <= ? 
-          AND promo.ends_at >= ?
+      LEFT JOIN (
+          SELECT p1.product_id, p1.discount_percent
+          FROM promotions p1
+          INNER JOIN (
+              SELECT product_id, MAX(starts_at) AS latest_start
+              FROM promotions
+              WHERE is_active = 1
+                AND starts_at <= ?
+                AND ends_at >= ?
+              GROUP BY product_id
+          ) p2 ON p1.product_id = p2.product_id AND p1.starts_at = p2.latest_start
+      ) promo ON promo.product_id = p.id
       WHERE c.user_id = ?
     ";
     $stmt = $conn->prepare($sql);
@@ -819,13 +860,23 @@ if ($action === 'create_order') {
 
             // ✅ Áp dụng giảm giá (nếu có)
             $now = date('Y-m-d H:i:s');
-            $promo_sql = "SELECT discount_percent 
-                          FROM promotions 
-                          WHERE product_id = ? AND is_active = 1 
-                            AND starts_at <= ? AND ends_at >= ? 
-                          ORDER BY id DESC LIMIT 1";
-            $promo_stmt = $conn->prepare($promo_sql);
-            $promo_stmt->bind_param("iss", $actual_product_id, $now, $now);
+            $promo_sql = "
+    SELECT p1.discount_percent
+    FROM promotions p1
+    INNER JOIN (
+        SELECT product_id, MAX(starts_at) AS latest_start
+        FROM promotions
+        WHERE is_active = 1
+          AND starts_at <= ?
+          AND ends_at >= ?
+        GROUP BY product_id
+    ) p2 ON p1.product_id = p2.product_id AND p1.starts_at = p2.latest_start
+    WHERE p1.product_id = ?
+    LIMIT 1
+";
+$promo_stmt = $conn->prepare($promo_sql);
+$promo_stmt->bind_param("ssi", $now, $now, $actual_product_id);
+
             $promo_stmt->execute();
             $promo = $promo_stmt->get_result()->fetch_assoc();
             if ($promo && $promo['discount_percent'] > 0) {
@@ -984,13 +1035,23 @@ if ($action === 'create_vnpay_payment') {
 
             // ✅ Áp dụng giảm giá nếu có
             $now = date('Y-m-d H:i:s');
-            $promo_sql = "SELECT discount_percent 
-                          FROM promotions 
-                          WHERE product_id = ? AND is_active = 1 
-                            AND starts_at <= ? AND ends_at >= ? 
-                          ORDER BY id DESC LIMIT 1";
-            $promo_stmt = $conn->prepare($promo_sql);
-            $promo_stmt->bind_param("iss", $actual_product_id, $now, $now);
+            $promo_sql = "
+    SELECT p1.discount_percent
+    FROM promotions p1
+    INNER JOIN (
+        SELECT product_id, MAX(starts_at) AS latest_start
+        FROM promotions
+        WHERE is_active = 1
+          AND starts_at <= ?
+          AND ends_at >= ?
+        GROUP BY product_id
+    ) p2 ON p1.product_id = p2.product_id AND p1.starts_at = p2.latest_start
+    WHERE p1.product_id = ?
+    LIMIT 1
+";
+$promo_stmt = $conn->prepare($promo_sql);
+$promo_stmt->bind_param("ssi", $now, $now, $actual_product_id);
+
             $promo_stmt->execute();
             $promo = $promo_stmt->get_result()->fetch_assoc();
             if ($promo && $promo['discount_percent'] > 0) {
@@ -1211,7 +1272,7 @@ if ($action === 'get_user_orders') {
     }
 
     // Lấy các đơn hàng của user (mới nhất trước)
-    $stmt = $conn->prepare("SELECT id, status, total_price, shipping_fee, subtotal, payment_method, shipping_address, phone, created_at FROM orders WHERE user_id = ? ORDER BY created_at DESC");
+    $stmt = $conn->prepare("SELECT id, status, total_price, shipping_fee, subtotal, payment_method, shipping_address, phone, created_at FROM orders WHERE user_id = ? ORDER BY id DESC");
     $stmt->bind_param("i", $user_id);
     if (!$stmt->execute()) {
         echo json_encode(["success" => false, "message" => "DB error"]);
@@ -1508,21 +1569,39 @@ if ($action === 'get_favorite') {
     exit;
 }
 
-// ================== GET ACTIVE PROMOTIONS ==================
+// ================== GET ACTIVE PROMOTIONS (FIXED) ==================
 if ($action === 'get_promotions') {
     header('Content-Type: application/json; charset=utf-8');
     $now = date('Y-m-d H:i:s');
-    $sql = "SELECT p.id AS promo_id, p.product_id, pr.name, pr.price, p.discount_percent, 
-                   p.starts_at, p.ends_at, 
-                   ROUND(pr.price * (1 - p.discount_percent/100), 2) AS final_price,
-                   pi.image_url
-            FROM promotions p
-            JOIN products pr ON p.product_id = pr.id
-            LEFT JOIN product_images pi ON pi.product_id = pr.id AND pi.is_main = 1
-            WHERE p.is_active = 1
-              AND p.starts_at <= ?
-              AND p.ends_at >= ?
-              AND pr.is_active = 1";
+    
+    // SỬA LỖI: Sử dụng ROW_NUMBER() để chọn khuyến mãi MỚI NHẤT cho mỗi sản phẩm, tránh trùng lặp.
+    // "Mới nhất" được xác định bằng ID cao nhất (được tạo gần đây nhất).
+    $sql = "
+    SELECT 
+        p.id AS promo_id,
+        p.product_id,
+        pr.name,
+        pr.price,
+        p.discount_percent,
+        p.starts_at,
+        p.ends_at,
+        ROUND(pr.price * (1 - p.discount_percent / 100), 2) AS final_price,
+        pi.image_url
+    FROM promotions p
+    JOIN products pr ON p.product_id = pr.id
+    LEFT JOIN product_images pi ON pi.product_id = pr.id AND pi.is_main = 1
+    INNER JOIN (
+        SELECT product_id, MAX(starts_at) AS latest_start
+        FROM promotions
+        WHERE is_active = 1
+          AND starts_at <= ?
+          AND ends_at >= ?
+        GROUP BY product_id
+    ) latest ON latest.product_id = p.product_id AND latest.latest_start = p.starts_at
+    WHERE pr.is_active = 1
+    ORDER BY p.discount_percent DESC
+";
+
 
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("ss", $now, $now);

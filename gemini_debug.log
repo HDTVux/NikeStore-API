@@ -873,3 +873,52 @@ RESPONSE:
 }
 
 
+[2025-11-02 06:27:44]
+PROMPT:
+Người dùng nhập: "alo"
+
+Nhiệm vụ của bạn:
+1️⃣ Phân tích ý định tìm kiếm để xác định các loại sản phẩm chính (ví dụ: giày, áo, quần, phụ kiện...).
+2️⃣ Trích xuất các từ khóa sản phẩm phù hợp với cơ sở dữ liệu.
+3️⃣ Dựa vào danh sách sản phẩm hiện có bên dưới để chọn ra các sản phẩm liên quan nhất.
+4️⃣ Nếu không có sản phẩm trùng, hãy tìm các từ khóa tương tự (ví dụ: 'outfit đi chơi' → giày sneaker, áo thun, quần short).
+
+Cơ sở dữ liệu sản phẩm hiện có:
+Không tìm thấy sản phẩm nào phù hợp.
+
+Hãy trả về tối đa 5 gợi ý ngắn gọn, mỗi gợi ý gồm tên và 1 lý do ngắn tại sao phù hợp. Nếu có ID trong danh sách, thêm (ID:x). Nếu không có sản phẩm khớp, hãy đề xuất danh mục tương ứng có thể tìm trong cửa hàng.
+Chỉ sử dụng các sản phẩm hoặc danh mục có thật, không bịa đặt.
+
+RESPONSE:
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Người dùng đã nhập \"alo\", đây là một lời chào hoặc khởi đầu cuộc hội thoại, không phải là một từ khóa tìm kiếm sản phẩm. Do đó, không có ý định mua sản phẩm cụ thể và không thể trích xuất từ khóa sản phẩm.\n\nDựa trên yêu cầu, khi không có sản phẩm khớp, cần đề xuất các danh mục tương ứng có thể tìm trong cửa hàng. Với một đầu vào không phải là từ khóa sản phẩm, chúng tôi sẽ đề xuất các danh mục phổ biến để người dùng có thể bắt đầu khám phá:\n\n1.  **Thời trang Nữ** - Lý do: Một danh mục rất rộng và phổ biến, có thể chứa nhiều sản phẩm bạn quan tâm.\n2.  **Thời trang Nam** - Lý do: Cung cấp nhiều lựa chọn về quần áo và phụ kiện cho phái mạnh.\n3.  **Phụ kiện** - Lý do: Bao gồm các mặt hàng như túi xách, đồng hồ, trang sức, có thể bổ sung cho nhiều phong cách.\n4.  **Đồ điện tử** - Lý do: Nếu bạn đang tìm kiếm các thiết bị công nghệ và tiện ích.\n5.  **Đồ gia dụng** - Lý do: Các sản phẩm thiết yếu giúp nâng cao chất lượng cuộc sống trong gia đình."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 231,
+    "candidatesTokenCount": 273,
+    "totalTokenCount": 1791,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 231
+      }
+    ],
+    "thoughtsTokenCount": 1287
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "0OsGadKcIIq52roPk_XSuAY"
+}
+
+
